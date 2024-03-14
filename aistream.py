@@ -6,13 +6,12 @@ from producer import *
 from confluent_kafka.avro import AvroProducer
 import avro.schema
 
-avro_schema_str = """
+avro_schema_str1 = """
 {
     "type": "record",
-    "name": "AISData",
+    "name": "AISData1",
     "fields": [
         {"name": "MMSI", "type": "int"},
-        {"name": "ship_name", "type": "string"},
         {"name": "lat", "type": "float"},
         {"name": "lng", "type": "float"},
         {"name": "time", "type": "string"}
@@ -20,7 +19,19 @@ avro_schema_str = """
 }
 """
 
-avro_schema = avro.schema.parse(avro_schema_str)
+avro_schema_str2 = """
+{
+    "type": "record",
+    "name": "AISData2",
+    "fields": [
+        {"name": "MMSI", "type": "int"},
+        {"name": "ship_name", "type": "string"}
+    ]
+}
+"""
+
+avro_schema1 = avro.schema.parse(avro_schema_str1)
+avro_schema2 = avro.schema.parse(avro_schema_str2)
 
 async def ais_stream():
     try:
@@ -53,12 +64,18 @@ async def ais_producer():
         'bootstrap.servers': bootstrap_servers,
         'schema.registry.url': 'http://localhost:8081'
     }
-    producer = AvroProducer(conf, default_value_schema=avro_schema)
-    TOPIC = 'aisstream'
+    
     while True:
         data = await ais_stream()
         if data is not None:
-            data_stream(data, TOPIC, producer)
+            data1 = {"MMSI": data['MMSI'], "ship_name": data['ship_name']}
+            data2 = {"MMSI": data['MMSI'], "lat": data['lat'], "lng": data['lng'], "time": data['time']}
+            TOPIC1 = 'aisstream1'
+            producer1 = AvroProducer(conf, default_value_schema=avro_schema2)
+            data_stream(data1, TOPIC1, producer1)
+            TOPIC2 = 'aisstream2'
+            producer2 = AvroProducer(conf, default_value_schema=avro_schema1)
+            data_stream(data2, TOPIC2, producer2)
         else:
             print("Failed to retrieve data from AIS stream.")
 
