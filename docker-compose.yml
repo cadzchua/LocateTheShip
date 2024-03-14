@@ -1,0 +1,185 @@
+---
+version: '2'
+services:
+  broker:
+    image: confluentinc/cp-server:7.4.1
+    hostname: broker
+    container_name: broker
+    ports:
+      - "9092:9092" # container to local host port mapping
+      - "9101:9101"
+      - "29092:29092"
+    environment:
+      # Unique ID for server
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9101  
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+      KAFKA_METRIC_REPORTERS: "io.confluent.metrics.reporter.ConfluentMetricsReporter"
+      KAFKA_CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: 'broker:9092'
+
+  # a centralized schema management solution for Kafka topics.
+  # It acts as a service that stores and manages schemas for the messages exchanged in Kafka topics.
+  # The Schema Registry is designed to work with Avro, a widely used binary serialization format in the Kafka ecosystem.
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.4.1
+    hostname: schema-registry
+    container_name: schema-registry
+    depends_on:
+      - broker
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'broker:29092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+
+  # Confluent Connect is a component of the Confluent Platform
+  # that enables you to easily integrate Apache Kafka with other systems.
+  connect:
+    image: llzd98/cp-kafka-connect-custom:7.4.1
+    hostname: connect
+    container_name: connect
+    depends_on:
+      - broker
+      - schema-registry
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: 'broker:29092'
+      CONNECT_REST_ADVERTISED_HOST_NAME: connect
+      CONNECT_GROUP_ID: compose-connect-group
+      CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
+      CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsetscd
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      # CLASSPATH required due to CC-2422
+      CLASSPATH: /usr/share/java/monitoring-interceptors/monitoring-interceptors-7.4.1.jar
+      CONNECT_PRODUCER_INTERCEPTOR_CLASSES: "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor"
+      CONNECT_CONSUMER_INTERCEPTOR_CLASSES: "io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor"
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+      CONNECT_LOG4J_LOGGERS: org.apache.zookeeper=ERROR,org.I0Itec.zkclient=ERROR,org.reflections=ERROR
+    volumes:
+      - ./connectors:/usr/share/confluent-hub-components/connectors
+    command:
+      - bash
+      - -c
+      - |
+        echo "Launching Kafka Connect worker"
+        /etc/confluent/docker/run &
+        # Wait for Kafka Connect to be ready
+        echo "Waiting for Kafka Connect to start..."
+        until $((echo > /dev/tcp/localhost/8083) >/dev/null 2>&1); do
+          sleep 2
+        done
+        echo "Kafka Connect is ready!"
+        # Keep the container running
+        tail -f /dev/null
+        #
+        sleep infinity
+
+  # GUI to manage confluent clusters
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:7.4.1
+    hostname: control-center
+    container_name: control-center
+    depends_on:
+      - broker
+      - schema-registry
+      - connect
+      - ksqldb-server
+    ports:
+      - "9021:9021"
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: 'broker:29092'
+      CONTROL_CENTER_CONNECT_CONNECT-DEFAULT_CLUSTER: 'connect:8083'
+      CONTROL_CENTER_CONNECT_HEALTHCHECK_ENDPOINT: '/connectors'
+      CONTROL_CENTER_KSQL_KSQLDB1_URL: "http://ksqldb-server:8088"
+      CONTROL_CENTER_KSQL_KSQLDB1_ADVERTISED_URL: "http://localhost:8088"
+      CONTROL_CENTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+      CONFLUENT_METRICS_TOPIC_REPLICATION: 1
+      PORT: 9021
+
+  # It provides a SQL-like query language for processing and analyzing real-time streaming data.
+  ksqldb-server:
+    image: confluentinc/cp-ksqldb-server:7.4.1
+    hostname: ksqldb-server
+    container_name: ksqldb-server
+    depends_on:
+      - broker
+      - connect
+    ports:
+      - "8088:8088"
+    environment:
+      KSQL_CONFIG_DIR: "/etc/ksql"
+      KSQL_BOOTSTRAP_SERVERS: "broker:29092"
+      KSQL_HOST_NAME: ksqldb-server
+      KSQL_LISTENERS: "http://0.0.0.0:8088"
+      KSQL_CACHE_MAX_BYTES_BUFFERING: 0
+      KSQL_KSQL_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
+      KSQL_PRODUCER_INTERCEPTOR_CLASSES: "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor"
+      KSQL_CONSUMER_INTERCEPTOR_CLASSES: "io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor"
+      KSQL_KSQL_CONNECT_URL: "http://connect:8083"
+      KSQL_KSQL_LOGGING_PROCESSING_TOPIC_REPLICATION_FACTOR: 1
+      KSQL_KSQL_LOGGING_PROCESSING_TOPIC_AUTO_CREATE: 'true'
+      KSQL_KSQL_LOGGING_PROCESSING_STREAM_AUTO_CREATE: 'true'
+      KSQL_KSQL_SERVICE_ID: confluent_rmoff_01
+      KSQL_KSQL_HIDDEN_TOPICS: '^_.*'
+
+  ksqldb-cli:
+    image: confluentinc/cp-ksqldb-cli:7.4.1
+    container_name: ksqldb-cli
+    depends_on:
+      - broker
+      - connect
+      - ksqldb-server
+    entrypoint: /bin/sh
+    tty: true
+
+  # It provides GUI for common Databases (eg. Postgres)
+  dbeaver:
+    image: dbeaver/cloudbeaver:24.0
+    container_name: dbeaver
+    volumes:
+      - dbeaver_data:/root/.dbeaver4
+    ports:
+      - "8978:8978"
+    environment:
+      - DBEAVER_HOME=/opt/dbeaver
+  
+  # Sample Postgres Database
+  postgres:
+    image: postgres:16.2
+    restart: always
+    environment:
+      POSTGRES_USER: sa
+      POSTGRES_PASSWORD: YourStrongPassword123
+
+    ports:
+    - '5432:5432'
+    volumes:
+    - ./postgres_db:/var/lib/postgresql/data
+
+volumes:
+  dbeaver_data:

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        #map { 
+            height: 600px;
+            width: 800px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script>
+        var map = L.map('map').setView([1.2875, 103.8514], 9);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+
+        function addMarker(latitude, longitude) {
+            L.marker([latitude, longitude]).addTo(map)
+                .bindPopup('Latitude: ' + latitude + '<br>Longitude: ' + longitude)
+                .openPopup();
+        }
+
+        async function connectWebSocket() {
+            try {
+                const response = await fetch('subscription.json');
+                const subscribeMessage = await response.json();
+
+                const websocket = new WebSocket("wss://stream.aisstream.io/v0/stream");
+
+                websocket.onmessage = function(event) {
+                    var message = JSON.parse(event.data);
+                    var messageType = message["MessageType"];
+
+                    if (messageType === "PositionReport") {
+                        var aisMessage = message['Message']['PositionReport'];
+                        addMarker(aisMessage['Latitude'], aisMessage['Longitude']);
+                    }
+                };
+            } catch (error) {
+                console.error('Error connecting to WebSocket:', error);
+            }
+        }
+
+        connectWebSocket();
+    </script>
+</body>
+</html>
