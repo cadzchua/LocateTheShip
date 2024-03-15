@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cJlMm1TvBkuB4DTCY4z4t4Stpn0X0+Bbk9ZqLg1pJUCM==" crossorigin=""/>
+
+</head>
+<body>
+    <div id="mapid" style="height: 100%; width: 100%;"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js" integrity="sha512-S/qDGBD1S6lFwz4ZtqumGRpXf6V4M2bXsJ0w6uXauTIHT0z3nQs1M1Ld1DjBvF/IG2Pv5Xk2uJL8dN49VrC3Gg==" crossorigin=""></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-sW5eu7BsPks6sGk9S1Vj0Ft7nVWfZ5i8+IAx7t2qTtzx2TgI3IStAzkFD7y2ra1qSZKBTYO4+OwJddTrI2MViA==" crossorigin="anonymous"></script>
+    <script>
+        var mymap = L.map('mapid').setView([51.5074, -0.1278], 10);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(mymap);
+        
+        var map_url = "{{ url_for('static', filename='map.html') }}";
+        $.get(map_url).done(function(response) {
+            $('#mapid').append(response);
+        });
+    </script>
+</body>
+</html>

@@ -181,5 +181,42 @@ services:
     volumes:
     - ./postgres_db:/var/lib/postgresql/data
 
+  prometheus:
+      ports:
+        - 9090:9090
+      image: prom/prometheus
+      command:
+        - '--config.file=/etc/prometheus/prometheus.yml'      
+      volumes:
+        - ./prometheus:/etc/prometheus
+
+  grafana:
+    image: grafana/grafana:10.0.12
+    ports:
+      - 3000:3000/tcp
+    links:
+      - prometheus
+    environment:
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - ./grafana:/etc/grafana/provisioning/
+  
+  ais-producer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      KAFKA_BOOTSTRAP_SERVER: 'broker:29092'
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    volumes:
+      - ./aisstream.py:/app/aisstream.py  
+      - ./producer.py:/app/producer.py
+      - ./subscription.json:/app/subscription.json
+      - ./requirements.txt:/app/requirements.txt
+    depends_on:
+      - schema-registry
+      - broker
+    restart: always
+
 volumes:
   dbeaver_data:
