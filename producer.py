@@ -8,7 +8,7 @@ from confluent_kafka.serialization import (
     MessageField,
 )
 
-schema_registry_conf = {'url': 'http://localhost:8081'}
+schema_registry_conf = {'url': 'http://schema-registry:8081'}
 schema_registry_client = SchemaRegistryClient(schema_registry_conf)
 
 avro_schema_str1 = """
@@ -37,7 +37,7 @@ avro_schema_str2 = """
 
 avro_serializer1 = AvroSerializer(schema_registry_client, avro_schema_str1)
 avro_serializer2 = AvroSerializer(schema_registry_client, avro_schema_str2)
-producer_conf = {'bootstrap.servers': 'localhost:9092'}
+producer_conf = {'bootstrap.servers': 'broker:29092'}
 producer = Producer(producer_conf)
 
 async def ais_stream():

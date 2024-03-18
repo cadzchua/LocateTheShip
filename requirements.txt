@@ -4,3 +4,4 @@ schedule
 confluent_kafka
 urllib3
 requests
+fastavro

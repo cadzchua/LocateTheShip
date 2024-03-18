@@ -207,12 +207,7 @@ services:
       dockerfile: Dockerfile
     environment:
       KAFKA_BOOTSTRAP_SERVER: 'broker:29092'
-      SCHEMA_REGISTRY_URL: http://schema-registry:8081
-    volumes:
-      - ./aisstream.py:/app/aisstream.py  
-      - ./producer.py:/app/producer.py
-      - ./subscription.json:/app/subscription.json
-      - ./requirements.txt:/app/requirements.txt
+      SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
     depends_on:
       - schema-registry
       - broker
