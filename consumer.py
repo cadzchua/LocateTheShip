@@ -32,7 +32,7 @@ consumer_conf = {
 
 consumer = Consumer(consumer_conf)
 
-topic = "telemetry"
+topic = "aisstream1"
 consumer.subscribe([topic])
 
 try:
