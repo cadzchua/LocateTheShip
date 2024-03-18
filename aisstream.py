@@ -59,10 +59,10 @@ async def ais_stream():
         return None
 
 async def ais_producer():
-    bootstrap_servers = 'broker:29092'
+    bootstrap_servers = 'localhost:29092'
     conf = {
         'bootstrap.servers': bootstrap_servers,
-        'schema.registry.url': 'http://schema-registry:8081'
+        'schema.registry.url': 'http://localhost:8081'
     }
     
     while True:
