@@ -4,7 +4,6 @@ RUN apt-get update && apt-get install -y \
     gcc \
     librdkafka-dev
 WORKDIR /app
-COPY producer.py subscription.json requirements.txt /app/
+COPY producer.py requirements.txt /app/
 RUN pip install -r requirements.txt 
-EXPOSE 5000
 CMD ["python", "producer.py"]

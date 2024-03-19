@@ -7,8 +7,9 @@ from confluent_kafka.serialization import (
     SerializationContext,
     MessageField,
 )
+import os
 
-schema_registry_conf = {'url': 'http://schema-registry:8081'}
+schema_registry_conf = {'url': f'{os.getenv("SCHEMA_REGISTRY_URL", default="http://localhost:8081")}'}
 schema_registry_client = SchemaRegistryClient(schema_registry_conf)
 
 avro_schema_str1 = """
@@ -37,25 +38,23 @@ avro_schema_str2 = """
 
 avro_serializer1 = AvroSerializer(schema_registry_client, avro_schema_str1)
 avro_serializer2 = AvroSerializer(schema_registry_client, avro_schema_str2)
-producer_conf = {'bootstrap.servers': 'broker:29092'}
+producer_conf = {'bootstrap.servers': os.getenv("KAFKA_BOOTSTRAP_SERVER", default="localhost:9092")}
 producer = Producer(producer_conf)
 
 async def ais_stream():
     try:
         async with websockets.connect("wss://stream.aisstream.io/v0/stream") as websocket:
-            with open("subscription.json", "r") as f:
-                subscribe_message = json.load(f)
-
-            subscribe_message_json = json.dumps(subscribe_message)
-            await websocket.send(subscribe_message_json)
-
+            subscribe_message = os.getenv("SUBSCRIPTION_JSON")
+            if subscribe_message is None:
+                raise ValueError("Subscription JSON not found in environment variables.")
+            
+            await websocket.send(subscribe_message)
             async for message_json in websocket:
                 message = json.loads(message_json)
                 message_type = message["MessageType"]
                 if message_type == "PositionReport":
                     ais_message = message['Message']['PositionReport']
                     meta_message = message['MetaData']
-
                     utc_plus_8_time = datetime.now(timezone.utc) + timedelta(hours=8)
                     utc_plus_8_time_str = utc_plus_8_time.strftime("%Y-%m-%d %H:%M:%S")
                     return {"MMSI": meta_message['MMSI'], "ship_name": meta_message['ShipName'], "lat": ais_message['Latitude'], "lng": ais_message['Longitude'], "time": utc_plus_8_time_str}

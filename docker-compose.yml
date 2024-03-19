@@ -181,36 +181,30 @@ services:
     volumes:
     - ./postgres_db:/var/lib/postgresql/data
 
-  prometheus:
-      ports:
-        - 9090:9090
-      image: prom/prometheus
-      command:
-        - '--config.file=/etc/prometheus/prometheus.yml'      
-      volumes:
-        - ./prometheus:/etc/prometheus
-
-  grafana:
-    image: grafana/grafana:10.0.12
-    ports:
-      - 3000:3000/tcp
-    links:
-      - prometheus
-    environment:
-      GF_INSTALL_PLUGINS: grafana-piechart-panel
-    volumes:
-      - ./grafana:/etc/grafana/provisioning/
-  
   ais-producer:
     build:
       context: .
       dockerfile: Dockerfile
     environment:
-      KAFKA_BOOTSTRAP_SERVER: 'broker:29092'
+      KAFKA_BOOTSTRAP_SERVER: "broker:29092"
       SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
+      SUBSCRIPTION_JSON: |
+        {
+        "APIKey": "3a0365367f648ac250e0620a3ea9a81f7413da93",
+        "BoundingBoxes": [
+                [
+                  [7.036229, 98.164939],
+                  [0.428173, 106.520886]
+                ]
+              ],
+        "FiltersShipMMSI": [],
+        "FilterMessageTypes": []
+        }
     depends_on:
       - schema-registry
       - broker
+      - connect
+      - ksqldb-server
     restart: always
 
 volumes:

@@ -1,9 +1,0 @@
-{
-  "type": "record",
-  "name": "TemperatureData",
-  "namespace": "com.example",
-  "fields": [
-    {"name": "index", "type": "int", "default": -1},
-    {"name": "temp", "type": "float"}
-  ]
-}
