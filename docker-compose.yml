@@ -181,6 +181,7 @@ services:
     volumes:
     - ./postgres_db:/var/lib/postgresql/data
 
+  # Producer to stream aisstream.io ship data to kafka
   ais-producer:
     image: cadzchua/aisstream:1.0
     environment:

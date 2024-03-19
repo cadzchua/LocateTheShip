@@ -42,6 +42,9 @@ producer_conf = {'bootstrap.servers': os.getenv("KAFKA_BOOTSTRAP_SERVER", defaul
 producer = Producer(producer_conf)
 
 async def ais_stream():
+    """ 
+    Retrives the information from the aisstream API and returns it.
+    """
     try:
         async with websockets.connect("wss://stream.aisstream.io/v0/stream") as websocket:
             subscribe_message = os.getenv("SUBSCRIPTION_JSON")
@@ -64,12 +67,19 @@ async def ais_stream():
         return None
     
 def delivery_report(err, msg):
+    """ 
+    Gives a report whether the message is successfully streaming.
+    """
     if err is not None:
         print(f"Message delivery failed: {err}")
     else:
         print(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
 async def ais_producer():
+    """
+    Streaming the data to kafka
+    note: currently 2 separate streams to be combined later using sql (for learning purposes)
+    """
     while True:
         data = await ais_stream()
         if data is not None:
