@@ -2,7 +2,7 @@
 
 ## Description
 
-Streaming aisstream.io data to kafka.
+Streaming aisstream.io data to kafka: `ship name`, `mmsi`, `latitude`, `longitude` and `time`.
 
 ### Files/Folders
 
