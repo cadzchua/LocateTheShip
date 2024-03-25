@@ -179,7 +179,7 @@ services:
     ports:
     - '5432:5432'
     volumes:
-    - ./postgres_db:/var/lib/postgresql/data
+    - ./postgres_db:/var/lib/postgresql/aisstream
 
   # Producer to stream aisstream.io ship data to kafka
   ais-producer:
