@@ -54,15 +54,24 @@ if __name__ == "__main__":
     # Initialize previous point
     prev_point = None
 
+    # Define custom icon properties
+    icon_image = 'application/ship.png'  # Path to your custom ship icon image
+    icon = folium.CustomIcon(
+        icon_image,
+        icon_size=(38, 95),
+        icon_anchor=(22, 94)
+    )
+
     # Iterate over query results to create features
     for row in query_result:
         ship_name, mmsi, lat, lon, time = row
 
-        # Create point feature
+        # Create point feature with custom icon
         point_feature = {
             "type": "Feature",
             "geometry": {"type": "Point", "coordinates": [lon, lat]},
             "properties": {"time": time, "popup": ship_name},
+            "icon": icon
         }
 
         # Create line feature
@@ -76,7 +85,7 @@ if __name__ == "__main__":
                         [lon, lat]
                     ]
                 },
-                "properties": {"time": time, "popup": ship_name, "style": {"color": generate_random_color()}}
+                "properties": {"time": time, "popup": ship_name, "style": {"color": generate_random_color()}, "icon": icon}
             }
             features.append(line_feature)
 
@@ -100,5 +109,4 @@ if __name__ == "__main__":
     ).add_to(m)
 
     # Save the map to an HTML file
-    m.save("map_with_timeline.html")
-
+    m.save("application/map_with_timeline.html")
