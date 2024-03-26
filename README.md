@@ -29,19 +29,19 @@ docker compose up [-d]
 ```
 ---
 Head over to `localhost:8978` to configure the GUI for the postgresDB.
-![Picture1!](<README/photos/Screenshot 2024-03-21 183936.png>)
+![Picture1!](<README/photos/dbeaver.png>)
 
 Make sure to press the **Create** button after configuring.
 
 ---
 Next, head over to `localhost:9021` to set up the JDBC Sink Connector for streaming data from Kafka to the PostgreSQL database.
 
-![Picture2!](<README/photos/Screenshot 2024-03-21 184438.png>)
+![Picture2!](<README/photos/control_centre1.png>)
 
 Make sure **aisstream1** and **aisstream2** are present in topics.
 
 ---
-![Picture3!](<README/photos/Screenshot 2024-03-21 184453.png>)
+![Picture3!](<README/photos/control_centre2.png>)
 ```sql
 CREATE STREAM aisstream1 WITH (
     KAFKA_TOPIC='aisstream1',  
@@ -72,7 +72,7 @@ CREATE STREAM aisstream_combined WITH (
 Type in the above code and **run query**.
 
 ---
-![Picture4!](<README/photos/Screenshot 2024-03-21 185127.png>)
+![Picture4!](<README/photos/control_centre3.png>)
 Go to connect and setup a JDBCSinkConnector with the following configurations.
 **Ensure that auto.create is True!** Check if the connector is running after launching it.
 
