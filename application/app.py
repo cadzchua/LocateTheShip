@@ -1,8 +1,10 @@
 import os
 import psycopg2
 import folium
-import random
-from folium.plugins import TimestampedGeoJson
+import random, math
+from collections import defaultdict
+import psycopg2
+from datetime import datetime, timedelta
 
 DATA_STORE_HOST = os.environ.get("DATA_STORE_HOST", "localhost")
 DATA_STORE_PORT = os.environ.get("DATA_STORE_PORT", "5432")
@@ -11,8 +13,41 @@ DATA_STORE_USER = os.environ.get("DATA_STORE_USER", "sa")
 DATA_STORE_PASSWORD = os.environ.get("DATA_STORE_PASSWORD", "YourStrongPassword123")
 DATA_STORE_TABLE = os.environ.get("DATA_STORE_TABLE", "aisstream_combined")
 
+def query():
+    """
+    Generates SQL query.
+    """
+    FILTER_MMSI = [] # List of integers
+    FILTER_SHIP_NAME = [] # List of strings
+    FILTER_TIME_RANGE = [(datetime.now() - timedelta(minutes=20), datetime.now())]
+
+    mmsi_condition = " OR ".join([f""""MMSI" = '{mmsi}'""" for mmsi in FILTER_MMSI])
+    ship_name_condition = " OR ".join([f"""TRIM("SHIP_NAME") ILIKE '{name}'""" for name in FILTER_SHIP_NAME])  # Trim to remove trailing whitespace and ILIKE for case-insensitive comparison.(= for case-sensitive comparison)
+    time_range_condition = " AND ".join([f""""TIME" >= '{start}' AND "TIME" <= '{end}'""" for start, end in FILTER_TIME_RANGE])
+
+    # Construct the SQL query with the filters
+    sql_query = f"SELECT * FROM {DATA_STORE_TABLE} WHERE "
+    conditions_ship_info = []
+    conditions = []
+    if mmsi_condition:
+        conditions.append(mmsi_condition)
+    if ship_name_condition:
+        conditions.append(ship_name_condition)
+    if time_range_condition:
+        conditions.append(time_range_condition)
+    print(conditions)
+    if conditions:
+        sql_query += " OR ".join(conditions)
+    else:
+        # If no filters are applied, retrieve all records
+        sql_query += "1=1;"
+    print(sql_query)
+    return sql_query
+
 def connect_to_postgres():
-    """Establishes a connection to the PostgreSQL database."""
+    """
+    Establishes a connection to the PostgreSQL database.
+    """
     conn = psycopg2.connect(
         host=DATA_STORE_HOST,
         port=DATA_STORE_PORT,
@@ -23,90 +58,87 @@ def connect_to_postgres():
     return conn
 
 def execute_sql_query(sql):
-    """Executes SQL query."""
+    """
+    Executes SQL query.
+    """
     conn = connect_to_postgres()
     cursor = conn.cursor()
     cursor.execute(sql)
     result = cursor.fetchall()
-    conn.close()  # Close connection after fetching results
+    conn.close()  
     return result
 
 def generate_random_color():
-    """Generate a random color in hex format."""
+    """
+    Generate a random color in hex format.
+    """
     r = lambda: random.randint(0, 255)
     return '#{:02x}{:02x}{:02x}'.format(r(), r(), r())
 
+def calculate_bearing(point1, point2):
+    """ 
+    Calculates the bearing given two points.
+    """
+    lon1, lat1 = point1
+    lon2, lat2 = point2
+    delta_lon = math.radians(lon2 - lon1)
+    lat1 = math.radians(lat1)
+    lat2 = math.radians(lat2)
+    x = math.sin(delta_lon) * math.cos(lat2)
+    y = math.cos(lat1) * math.sin(lat2) - (math.sin(lat1) * math.cos(lat2) * math.cos(delta_lon))
+    initial_bearing = math.atan2(x, y)
+    initial_bearing = math.degrees(initial_bearing)
+    compass_bearing = (initial_bearing + 360) % 360
+
+    return compass_bearing
+
 if __name__ == "__main__":
-    # Example query to select ship name, latitude, longitude, and time
-    sql_query = f"SELECT * FROM {DATA_STORE_TABLE};"
+    sql_query = query()
     query_result = execute_sql_query(sql_query)
+    print(query_result)
+    ship_icon_path = 'application/ship.png'
+    if query_result:
+        mymap = folium.Map(location=[query_result[0][2], query_result[0][3]], zoom_start=10)
+    else:
+        mymap = folium.Map()
+    prev_points = defaultdict(list)
+    mmsi_colors = {}  # Track colors for each MMSI
 
-    # Create a Folium map centered at the first data point
-    m = folium.Map(location=[query_result[0][2], query_result[0][3]], zoom_start=10)
+    ship_group = folium.FeatureGroup()
 
-    # Create a feature group for lines
-    line_group = folium.FeatureGroup(name="Lines")
-    m.add_child(line_group)
-
-    # Create a list to store GeoJSON features
-    features = []
-
-    # Initialize previous point
-    prev_point = None
-
-    # Define custom icon properties
-    icon_image = 'application/ship.png'  # Path to your custom ship icon image
-    icon = folium.CustomIcon(
-        icon_image,
-        icon_size=(38, 95),
-        icon_anchor=(22, 94)
-    )
-
-    # Iterate over query results to create features
-    for row in query_result:
+    for idx, row in enumerate(query_result):
         ship_name, mmsi, lat, lon, time = row
 
-        # Create point feature with custom icon
-        point_feature = {
-            "type": "Feature",
-            "geometry": {"type": "Point", "coordinates": [lon, lat]},
-            "properties": {"time": time, "popup": ship_name},
-            "icon": icon
-        }
+        # Create ship icon marker
+        ship_icon = folium.features.CustomIcon(ship_icon_path, icon_size=(20, 20))
+        marker = folium.Marker([lat, lon], popup=ship_name, icon=ship_icon)
+        mymap.add_child(marker)
 
-        # Create line feature
-        if prev_point is not None:
-            line_feature = {
-                "type": "Feature",
-                "geometry": {
-                    "type": "LineString",
-                    "coordinates": [
-                        [prev_point[0], prev_point[1]],
-                        [lon, lat]
-                    ]
-                },
-                "properties": {"time": time, "popup": ship_name, "style": {"color": generate_random_color()}, "icon": icon}
-            }
-            features.append(line_feature)
+        prev_mmsi_points = prev_points[mmsi]
+        if prev_mmsi_points:
+            prev_lon, prev_lat, prev_time = prev_mmsi_points[-1]
+            
+            # Check if there are any intermediate points
+            intermediate_points = any(point[2] > prev_time and point[2] < time for point in prev_mmsi_points)
+            
+            if not intermediate_points:
+                # Determine color for the current MMSI
+                if mmsi not in mmsi_colors:
+                    mmsi_colors[mmsi] = generate_random_color()
+                color = mmsi_colors[mmsi]
+                
+                # Draw line between previous point and current point using the same color
+                line = folium.PolyLine(locations=[[prev_lat, prev_lon], [lat, lon]], color=color)
+                mymap.add_child(line)
 
-        # Update previous point
-        prev_point = [lon, lat]
+                # Calculate bearing between two consecutive points
+                bearing = calculate_bearing((prev_lon, prev_lat), (lon, lat))
 
-        # Append point feature
-        features.append(point_feature)
+                # Add arrow marker at the end of the line using a regular polygon marker
+                arrow = folium.RegularPolygonMarker(location=((lat + prev_lat) / 2, (lon + prev_lon) / 2), color=color, fill_color=color, weight=6, number_of_sides=3, radius=7, rotation=bearing - 90)
+                mymap.add_child(arrow)
 
-    # Add TimestampedGeoJson to the map
-    TimestampedGeoJson(
-        {"type": "FeatureCollection", "features": features},
-        period="PT30M",
-        add_last_point=True,
-        auto_play=False,
-        loop=False,
-        max_speed=1,
-        loop_button=True,
-        date_options="YYYY-MM-DD",
-        time_slider_drag_update=True,
-    ).add_to(m)
+        prev_points[mmsi].append((lon, lat, time))
 
-    # Save the map to an HTML file
-    m.save("application/map_with_timeline.html")
+# Save the map to an HTML file
+mymap.save('path_map.html')
