@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <link rel="shortcut icon" href="https://www.freeiconspng.com/uploads/ship-travel-cruise-tourism-travel-icon-png-ship-png-ship-icon-29.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ship Map</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        #map-container {
+            width: 100%;
+            height: calc(100% - 50px);
+            position: relative;
+            display: flex;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        #filter-forms {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="filter-forms">
+        <h2>Filter Data</h2>
+        <form id="filter-form">
+            <div class="form-group">
+                <label for="shipName">Ship Name:</label><br>
+                <input type="text" id="shipName" name="shipNames"><br>
+
+                <label for="mmsi">MMSI:</label><br>
+                <input type="text" id="mmsi" name="mmsi"><br>
+
+                <label for="datetime">Date/Time: (YYYY-MM-DD HH:MM:SS, YYYY-MM-DD HH:MM:SS):</label><br>
+                <input type="text" id="datetime" name="timeRange"><br>
+            </div>
+            <button type="submit" class="btn btn-primary">Filter Data</button>
+        </form>
+    </div>
+    <div id="map-container">
+        <div id="map">
+            <!-- Map will be loaded dynamically here -->
+        </div>
+    </div>
+
+    <!-- JavaScript to handle form submission -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $('#filter-form').submit(function (e) {
+                e.preventDefault(); // Prevent default form submission
+                $.ajax({
+                    url: '/filter', // Route to Flask route for handling form submission
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function (response) {
+                        $('#map').html(response);
+                    },
+                    error: function (xhr, status, error) {
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
