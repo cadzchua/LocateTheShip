@@ -1,8 +1,13 @@
+from flask import Flask
+from flask import render_template, request
 import os
 import psycopg2
 import folium
-import random, math
+import random
+import math
 from collections import defaultdict
+
+app = Flask(__name__)
 
 DATA_STORE_HOST = os.environ.get("DATA_STORE_HOST", "localhost")
 DATA_STORE_PORT = os.environ.get("DATA_STORE_PORT", "5432")
@@ -11,17 +16,20 @@ DATA_STORE_USER = os.environ.get("DATA_STORE_USER", "sa")
 DATA_STORE_PASSWORD = os.environ.get("DATA_STORE_PASSWORD", "YourStrongPassword123")
 DATA_STORE_TABLE = os.environ.get("DATA_STORE_TABLE", "aisstream_combined")
 
-def query():
+def query(filters):
     """
-    Generates SQL query.
+    Generates SQL query with optional filters.
     """
-    FILTER_MMSI = [645482000, 565553000] # List of integers
-    FILTER_SHIP_NAME = ['como'] # List of strings
-    FILTER_TIME_RANGE = [('2024-03-26 13:07:00', '2024-03-26 13:23:00')] # List of tuples (start, end) example: ('2024-03-26 13:07:00', '2024-03-26 13:23:00')
+    for mmsi in filters.get('mmsi', []):
+        print(mmsi)
+    for mmsi in filters.get('shipNames', []):
+        print(mmsi)
 
-    mmsi_condition = " OR ".join([f""""AIS_MMSI" = '{mmsi}'""" for mmsi in FILTER_MMSI])
-    ship_name_condition = " OR ".join([f"""TRIM("AIS_SHIP_NAME") ILIKE '{name}'""" for name in FILTER_SHIP_NAME])  # Trim to remove trailing whitespace and ILIKE for case-insensitive comparison.(= for case-sensitive comparison)
-    time_range_condition = " AND ".join([f""""AIS_TIME" >= '{start}' AND "AIS_TIME" <= '{end}'""" for start, end in FILTER_TIME_RANGE])
+    for mmsi in filters.get('timeRange', []):
+        print(mmsi)
+    mmsi_condition = " OR ".join([f""""AIS_MMSI" = '{mmsi}'""" for mmsi in filters.get('mmsi', [])])
+    ship_name_condition = " OR ".join([f"""TRIM("AIS_SHIP_NAME") ILIKE '{name}'""" for name in filters.get('shipNames', [])])
+    time_range_condition = " AND ".join([f""""AIS_TIME" >= '{start}' AND "AIS_TIME" <= '{end}'""" for start, end in filters.get('timeRange', [])])
 
     # Construct the SQL query with the filters
     sql_query = f"SELECT * FROM {DATA_STORE_TABLE} WHERE "
@@ -33,10 +41,13 @@ def query():
         conditions1.append(ship_name_condition)
     if time_range_condition:
         conditions2.append(time_range_condition)
-                           
-    if conditions1 or conditions2:
+
+    if conditions1 and conditions2: 
+        sql_query += " OR ".join(conditions1) + " AND " + " AND ".join(conditions2)             
+    elif conditions1:
         sql_query += " OR ".join(conditions1)
-        sql_query += " AND " + " AND ".join(conditions2)
+    elif conditions2:
+        sql_query += " AND ".join(conditions2)
     else:
         # If no filters are applied, retrieve all records
         sql_query += "1=1;"
@@ -91,24 +102,46 @@ def calculate_bearing(point1, point2):
 
     return compass_bearing
 
-if __name__ == "__main__":
-    sql_query = query()
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/filter', methods=['POST'])
+def filter_data():
+    filters = {
+        'mmsi': [],  
+        'shipNames': [],
+        'timeRange': [],
+    }
+
+    # Handle MMSI input
+    if request.form.get('mmsi'):
+        mmsi_list = [int(mmsi.strip()) for mmsi in request.form.get('mmsi', '').split(",") if mmsi.strip()] 
+        filters['mmsi'] = mmsi_list
+    if request.form.get('shipNames'):
+        shipNames_list = [name.strip() for name in request.form.get('shipNames', '').split(",")]  
+        filters['shipNames'] = shipNames_list
+    if request.form.get('timeRange'):
+        timeRange_list = [tuple([time.strip() for time in request.form.get('timeRange', '').split(",")])]  
+        filters['timeRange'] = timeRange_list
+
+    print(filters)
+    sql_query = query(filters)
     query_result = execute_sql_query(sql_query)
     print(query_result)
-    ship_icon_path = 'ship.png'
+    # Plot map
     if query_result:
         mymap = folium.Map(location=[query_result[0][2], query_result[0][3]], zoom_start=10)
     else:
-        mymap = folium.Map()
+        return "There is no ship!"
     prev_points = defaultdict(list)
     mmsi_colors = {}  # Track colors for each MMSI
-
-    ship_group = folium.FeatureGroup()
 
     for idx, row in enumerate(query_result):
         ship_name, mmsi, lat, lon, time = row
 
         # Create ship icon marker
+        ship_icon_path = 'ship.png'
         ship_icon = folium.features.CustomIcon(ship_icon_path, icon_size=(20, 20))
         marker = folium.Marker([lat, lon], popup=ship_name, icon=ship_icon)
         mymap.add_child(marker)
@@ -137,7 +170,10 @@ if __name__ == "__main__":
                 arrow = folium.RegularPolygonMarker(location=((lat + prev_lat) / 2, (lon + prev_lon) / 2), color=color, fill_color=color, weight=6, number_of_sides=3, radius=7, rotation=bearing - 90)
                 mymap.add_child(arrow)
 
-        prev_points[mmsi].append((lon, lat, time))
+    map_html = mymap._repr_html_()
+    
+    return map_html
 
-    # Save the map to an HTML file
-    mymap.save('templates/path_map.html')
+
+if __name__ == '__main__':
+    app.run(debug=True)
