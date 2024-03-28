@@ -51,7 +51,6 @@ def query(filters):
     else:
         # If no filters are applied, retrieve all records
         sql_query += "1=1;"
-    print(sql_query)
     return sql_query
 
 def connect_to_postgres():
@@ -125,10 +124,8 @@ def filter_data():
         timeRange_list = [tuple([time.strip() for time in request.form.get('timeRange', '').split(",")])]  
         filters['timeRange'] = timeRange_list
 
-    print(filters)
     sql_query = query(filters)
     query_result = execute_sql_query(sql_query)
-    print(query_result)
     # Plot map
     if query_result:
         mymap = folium.Map(location=[query_result[0][2], query_result[0][3]], zoom_start=10)
@@ -139,9 +136,8 @@ def filter_data():
 
     for idx, row in enumerate(query_result):
         ship_name, mmsi, lat, lon, time = row
-
         # Create ship icon marker
-        ship_icon_path = 'ship.png'
+        ship_icon_path = 'application/ship.png'
         ship_icon = folium.features.CustomIcon(ship_icon_path, icon_size=(20, 20))
         marker = folium.Marker([lat, lon], popup=ship_name, icon=ship_icon)
         mymap.add_child(marker)
@@ -169,9 +165,9 @@ def filter_data():
                 # Add arrow marker at the end of the line using a regular polygon marker
                 arrow = folium.RegularPolygonMarker(location=((lat + prev_lat) / 2, (lon + prev_lon) / 2), color=color, fill_color=color, weight=6, number_of_sides=3, radius=7, rotation=bearing - 90)
                 mymap.add_child(arrow)
+        prev_points[mmsi].append((lon, lat, time))
 
     map_html = mymap._repr_html_()
-    
     return map_html
 
 

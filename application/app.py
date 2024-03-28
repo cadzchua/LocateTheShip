@@ -15,9 +15,9 @@ def query():
     """
     Generates SQL query.
     """
-    FILTER_MMSI = [645482000, 565553000] # List of integers
-    FILTER_SHIP_NAME = ['como'] # List of strings
-    FILTER_TIME_RANGE = [('2024-03-26 13:07:00', '2024-03-26 13:23:00')] # List of tuples (start, end) example: ('2024-03-26 13:07:00', '2024-03-26 13:23:00')
+    FILTER_MMSI = [] # List of integers
+    FILTER_SHIP_NAME = [] # List of strings
+    FILTER_TIME_RANGE = [] # List of tuples (start, end) example: ('2024-03-26 13:07:00', '2024-03-26 13:23:00')
 
     mmsi_condition = " OR ".join([f""""AIS_MMSI" = '{mmsi}'""" for mmsi in FILTER_MMSI])
     ship_name_condition = " OR ".join([f"""TRIM("AIS_SHIP_NAME") ILIKE '{name}'""" for name in FILTER_SHIP_NAME])  # Trim to remove trailing whitespace and ILIKE for case-insensitive comparison.(= for case-sensitive comparison)
@@ -33,14 +33,16 @@ def query():
         conditions1.append(ship_name_condition)
     if time_range_condition:
         conditions2.append(time_range_condition)
-                           
-    if conditions1 or conditions2:
+
+    if conditions1 and conditions2: 
+        sql_query += " OR ".join(conditions1) + " AND " + " AND ".join(conditions2)             
+    elif conditions1:
         sql_query += " OR ".join(conditions1)
-        sql_query += " AND " + " AND ".join(conditions2)
+    elif conditions2:
+        sql_query += " AND ".join(conditions2)
     else:
         # If no filters are applied, retrieve all records
         sql_query += "1=1;"
-    print(sql_query)
     return sql_query
 
 def connect_to_postgres():
@@ -94,15 +96,14 @@ def calculate_bearing(point1, point2):
 if __name__ == "__main__":
     sql_query = query()
     query_result = execute_sql_query(sql_query)
-    print(query_result)
-    ship_icon_path = 'ship.png'
+    ship_icon_path = 'application/ship.png'
     if query_result:
         mymap = folium.Map(location=[query_result[0][2], query_result[0][3]], zoom_start=10)
     else:
         mymap = folium.Map()
     prev_points = defaultdict(list)
     mmsi_colors = {}  # Track colors for each MMSI
-
+    
     ship_group = folium.FeatureGroup()
 
     for idx, row in enumerate(query_result):
@@ -138,6 +139,5 @@ if __name__ == "__main__":
                 mymap.add_child(arrow)
 
         prev_points[mmsi].append((lon, lat, time))
-
     # Save the map to an HTML file
-    mymap.save('templates/path_map.html')
+    mymap.save('path_map.html')
