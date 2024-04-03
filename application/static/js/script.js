@@ -14,10 +14,15 @@ function clearFormData() {
 }
 
 function toggleForm() {
-    var form = document.getElementById("filterForm");
-    form.classList.toggle("minimized");
+    var form = document.querySelector('.filter-form');
+    var button = document.getElementById('myButton2');
+    form.classList.toggle('minimized');
+    if (form.classList.contains('minimized')) {
+        button.textContent = '+';
+    } else {
+        button.textContent = '-';
+    }
 }
-
 window.onload = function() {
     var savedFormData = localStorage.getItem("formData");
     if (savedFormData) {
@@ -30,10 +35,5 @@ window.onload = function() {
 };
 
 document.getElementById("myButton").addEventListener("click", function() {
-    var button = document.getElementById("myButton");
-    if (button.textContent === "+") {
-        button.textContent = "-";
-    } else {
-        button.textContent = "+";
-    }
+    window.location.href = "/";
 });

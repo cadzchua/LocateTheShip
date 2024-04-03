@@ -13,11 +13,10 @@ body {
     z-index: 1;
 }
 
-
 .filter-forms {
     position: absolute;
     top: 0;
-    left: 0;
+    right: 0;
     z-index: 2; 
     padding: 10px;
     background-color: #ffffffae;
@@ -71,17 +70,23 @@ input[type="datetime-local"] {
     align-items: center;
 }
 
-.filter-header button {
+#myButton2 {
     margin-left: 10px; 
 }
 
+#myButton {
+    margin-right: 10px; 
+}
+
 .filter-form {
-    transition: height 1s cubic-bezier(1, -0.55, 0.265, 1.55);
+    max-height: 1000px;
+    height: auto;  
+    overflow: hidden;
+    transition: overflow .5s ease-in-out, max-height .5s ease-in-out;
 }
 
 .minimized {
-    height: 0;
-    overflow: hidden;
+    max-height: 0;
     padding: 0;
 }
 

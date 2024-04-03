@@ -116,9 +116,9 @@ def map_plot(query_result):
         # Create ship icon marker
         ship_icon_path = "static/images/ship.png"
         ship_icon_with_name_html = f"""
-        <div style="position:relative;text-align:center;">
-            <img src="{ship_icon_path}" style="width:30px;height:30px;">
-            <div style="position:absolute; bottom:-30px; width: 100%; left: 0; transform: translateX(-50%);">{ship_name.strip()}</div>
+        <div style="position:relative; text-align:center;">
+            <img src="{ship_icon_path}" style="width:30px; height:30px;">
+            <div>{ship_name.strip()}</div>
         </div>
         """
 
