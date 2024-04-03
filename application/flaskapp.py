@@ -1,10 +1,6 @@
 from flask import Flask
 from flask import render_template, request, redirect, url_for
-import os
-import psycopg2
-import folium
-import random
-import math
+import folium, random, math, os, psycopg2
 from collections import defaultdict
 from datetime import datetime
 
@@ -181,7 +177,6 @@ def filter_data():
     query_result = execute_sql_query(sql_query)
     map_html = map_plot(query_result)
     return render_template('index.html', map_html=map_html)
-
 
 if __name__ == '__main__':
     app.run(debug=True)
