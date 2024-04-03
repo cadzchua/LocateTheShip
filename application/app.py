@@ -3,6 +3,7 @@ import psycopg2
 import folium
 import random, math
 from collections import defaultdict
+from datetime import datetime
 
 DATA_STORE_HOST = os.environ.get("DATA_STORE_HOST", "localhost")
 DATA_STORE_PORT = os.environ.get("DATA_STORE_PORT", "5432")
@@ -107,7 +108,8 @@ if __name__ == "__main__":
     ship_group = folium.FeatureGroup()
 
     for idx, row in enumerate(query_result):
-        ship_name, mmsi, lat, lon, time = row
+        ship_name, mmsi, lat, lon, time_str = row
+        time = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
 
         # Create ship icon marker
         ship_icon = folium.features.CustomIcon(ship_icon_path, icon_size=(20, 20))
@@ -140,4 +142,4 @@ if __name__ == "__main__":
 
         prev_points[mmsi].append((lon, lat, time))
     # Save the map to an HTML file
-    mymap.save('path_map.html')
+    mymap.save('application/path_map.html')

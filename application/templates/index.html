@@ -5,76 +5,35 @@
     <link rel="shortcut icon" href="https://www.freeiconspng.com/uploads/ship-travel-cruise-tourism-travel-icon-png-ship-png-ship-icon-29.png">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Ship Map</title>
-    <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-        }
-        #map-container {
-            width: 100%;
-            height: calc(100% - 50px);
-            position: relative;
-            display: flex;
-        }
-        #map {
-            width: 100%;
-            height: 100%;
-        }
-        #filter-forms {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 1000;
-            background-color: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-        }
-    </style>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/index_style.css') }}">
 </head>
 <body>
-    <div id="filter-forms">
-        <h2>Filter Data</h2>
-        <form id="filter-form">
+    <div class="map-container">
+        {{ map_html | safe }}
+    </div>
+    <div class="filter-forms">
+        <div class="filter-header">
+            <h2>Filter Data</h2>
+            <button class="button1" id="myButton" onclick="toggleForm()">-</button>
+        </div>
+        <form id="filterForm" action="/filter" method="post" class="filter-form" onsubmit="submitForm(event)">
             <div class="form-group">
                 <label for="shipName">Ship Name:</label><br>
                 <input type="text" id="shipName" name="shipNames"><br>
-
                 <label for="mmsi">MMSI:</label><br>
                 <input type="text" id="mmsi" name="mmsi"><br>
-
-                <label for="datetime">Date/Time: (YYYY-MM-DD HH:MM:SS, YYYY-MM-DD HH:MM:SS):</label><br>
-                <input type="text" id="datetime" name="timeRange"><br>
+                <label for="datetime">Start Date/Time:</label><br>
+                <input type="datetime-local" id="datetime1" name="timeRange1"><br>
+                <label for="datetime">End Date/Time:</label><br>
+                <input type="datetime-local" id="datetime2" name="timeRange2"><br>
             </div>
-            <button type="submit" class="btn btn-primary">Filter Data</button>
+            <div class="button-container">
+                <button id="query" type="button" onclick="clearFormData()">Clear Query</button>
+                <button id="search" type="submit" class="btn btn-primary" onclick="saveFormData()">Search</button>
+            </div>
         </form>
     </div>
-    <div id="map-container">
-        <div id="map">
-            <!-- Map will be loaded dynamically here -->
-        </div>
-    </div>
-
-    <!-- JavaScript to handle form submission -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script>
-        $(document).ready(function () {
-            $('#filter-form').submit(function (e) {
-                e.preventDefault(); // Prevent default form submission
-                $.ajax({
-                    url: '/filter', // Route to Flask route for handling form submission
-                    type: 'POST',
-                    data: $(this).serialize(),
-                    success: function (response) {
-                        $('#map').html(response);
-                    },
-                    error: function (xhr, status, error) {
-                    }
-                });
-            });
-        });
-    </script>
+    <script src="static/js/script.js"></script>
 </body>
+
 </html>

@@ -1,0 +1,104 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.map-container {
+    position: relative;
+    top: 0;
+    left: 0;
+    min-width: 168vh;
+    z-index: 1;
+}
+
+
+.filter-forms {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2; 
+    padding: 10px;
+    background-color: #ffffffae;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: auto;
+    margin-top: 5px;
+    margin-left: 5px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="datetime-local"] {
+    margin-bottom: 5px;
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
+    border: 1.4px solid #000000;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.button-container {
+    text-align: center;
+}
+
+#query, #search {
+    display: inline-block; 
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#query:hover, #search:hover {
+    background-color: #0056b3;
+}
+
+.filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.filter-header button {
+    margin-left: 10px; 
+}
+
+.filter-form {
+    transition: height 1s cubic-bezier(1, -0.55, 0.265, 1.55);
+}
+
+.minimized {
+    height: 0;
+    overflow: hidden;
+    padding: 0;
+}
+
+.button1 {
+    width: auto;
+    font-family: "Mochiy Pop One", sans-serif;
+    border-radius: 20px; 
+    padding: 10px 20px; 
+    background-color: #4cc2e7;
+    color: rgb(0, 0, 0); 
+    text-align: center; 
+    text-decoration: none; 
+    display: inline-block; 
+}
+
+.button1:hover {
+    background-color: #3d9ab7; 
+    color: rgb(0, 0, 0); 
+    border: rgb(0, 0, 0) solid 2px; 
+}
