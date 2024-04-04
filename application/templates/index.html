@@ -22,10 +22,14 @@
         </div>
         <form id="filterForm" action="/filter" method="post" class="filter-form" onsubmit="submitForm(event)">
             <div class="form-group">
-                <label for="shipName">Ship Name:</label><br>
-                <input type="text" id="shipName" name="shipNames"><br>
-                <label for="mmsi">MMSI:</label><br>
-                <input type="text" id="mmsi" name="mmsi"><br>
+                <div class="entryarea">
+                    <input type="text" id="shipName" name="shipNames">
+                    <div class="labelline1">Enter Ship Name</div>
+                </div>
+                <div class="entryarea2">
+                    <input type="text" id="mmsi" name="mmsi">
+                    <div class="labelline2">Enter Ship MMSI</div>
+                </div>
                 <label for="datetime">Start Date/Time:</label><br>
                 <input type="datetime-local" id="datetime1" name="timeRange1"><br>
                 <label for="datetime">End Date/Time:</label><br>
