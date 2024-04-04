@@ -85,8 +85,8 @@ async def ais_producer():
         if data is not None:
             data1 = {"MMSI": data['MMSI'], "lat": data['lat'], "lng": data['lng'], "time": data['time']}
             data2 = {"MMSI": data['MMSI'], "ship_name": data['ship_name']}
-            producer.produce(topic="aisstream1", value=avro_serializer1(data1, SerializationContext("aisstream1", MessageField.VALUE)), callback=delivery_report)
-            producer.produce(topic="aisstream2", value=avro_serializer2(data2, SerializationContext("aisstream2", MessageField.VALUE)), callback=delivery_report)
+            producer.produce(topic=os.getenv("TOPIC_NAME_1", default="aisstream1"), value=avro_serializer1(data1, SerializationContext("aisstream1", MessageField.VALUE)), callback=delivery_report)
+            producer.produce(topic=os.getenv("TOPIC_NAME_2", default="aisstream2"), value=avro_serializer2(data2, SerializationContext("aisstream2", MessageField.VALUE)), callback=delivery_report)
             producer.flush()
         else:
             print("Failed to retrieve data from AIS stream.")

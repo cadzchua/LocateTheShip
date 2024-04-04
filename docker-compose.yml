@@ -199,6 +199,8 @@ services:
         "FiltersShipMMSI": [],
         "FilterMessageTypes": []
         }
+      TOPIC_NAME_1: 'aisstream1'
+      TOPIC_NAME_2: 'aisstream2'
     depends_on:
       - schema-registry
       - broker
