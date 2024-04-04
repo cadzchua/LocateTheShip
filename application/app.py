@@ -106,18 +106,31 @@ def map_plot(query_result):
     if not query_result:
         return "There is no ship!"
     
+    latest_ships = {}
     map = folium.Map(location=[query_result[0][2], query_result[0][3]], zoom_start=10)
-
-    for _, row in enumerate(query_result):
+    for idx, row in enumerate(query_result):
         ship_name, mmsi, lat, lon, time_str = row
         time = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
+
+        if mmsi not in latest_ships or time > latest_ships[mmsi][1]:
+            latest_ships[mmsi] = (ship_name, time)
+    print(latest_ships)
+    for idx, row in enumerate(query_result):
+        ship_name, mmsi, lat, lon, time_str = row
+        time = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
+        
+        # Determine border style based on whether it's the latest ship or not
+        latest_ship_name, latest_time = latest_ships[mmsi]
+        is_latest_ship = (ship_name, time) == (latest_ship_name, latest_time)
+        # Determine border style based on whether it's the latest ship or not
+        border_style = "font-weight: bold;" if is_latest_ship else ""
         # Create ship icon marker
         ship_icon_path = "static/images/ship.png"
         # Ship Icon + Ship Name
         ship_icon_with_name_html = f"""
         <div style="position:relative; text-align:center;">
             <img src="{ship_icon_path}" style="width:30px; height:30px;">
-            <div>{ship_name.strip()}</div>
+            <div style="{border_style}">{ship_name.strip()}</div>
         </div>
         """
         # Customised Pop Up Box
