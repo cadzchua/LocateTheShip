@@ -207,7 +207,7 @@ services:
     restart: always
 
   ais-website:
-    image: cadzchua/aiswebsite:1.0
+    image: cadzchua/aiswebsite:1.1
     environment:
       DATA_STORE_HOST: "postgres"
       DATA_STORE_PORT: "5432"
