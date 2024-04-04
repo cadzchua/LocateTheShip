@@ -206,5 +206,24 @@ services:
       - ksqldb-server
     restart: always
 
+  ais-website:
+    image: cadzchua/aiswebsite:1.0
+    environment:
+      DATA_STORE_HOST: "postgres"
+      DATA_STORE_PORT: "5432"
+      DATA_STORE_DATABASE: "postgres"
+      DATA_STORE_USER: "sa"
+      DATA_STORE_PASSWORD: "YourStrongPassword123"
+      DATA_STORE_TABLE: "aisstream_combined"
+    depends_on:
+      - postgres
+      - schema-registry
+      - broker
+      - connect
+      - ksqldb-server
+    ports:
+    - '5000:5000'
+    restart: always
+
 volumes:
   dbeaver_data:
