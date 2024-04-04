@@ -1,3 +1,0 @@
-Flask
-folium
-psycopg2-binary
