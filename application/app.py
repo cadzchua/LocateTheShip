@@ -145,6 +145,7 @@ def map_plot(query_result):
         pop_up_html = f"""
         <div class="popup-container">
             <h2><strong>Ship Information:</strong></h2>
+            <strong>Source:</strong> aisstream.io<br/>
             <strong>Ship Name:</strong> {ship_name}<br/>
             <strong>Ship MMSI:</strong> {mmsi}<br/>
             <strong>Time:</strong> {time_str}<br/>
@@ -156,7 +157,7 @@ def map_plot(query_result):
         </div>
         """
         popup_html = popup_css + pop_up_html
-        iframe = branca.element.IFrame(html=popup_html, width=300, height=200)
+        iframe = branca.element.IFrame(html=popup_html, width=320, height=250)
         popup = folium.Popup(iframe)
 
         marker = folium.Marker([lat, lon], icon=folium.DivIcon(html=ship_icon_with_name_html), popup=popup)
