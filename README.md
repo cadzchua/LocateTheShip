@@ -79,6 +79,10 @@ Go to connect and setup a JDBCSinkConnector with the following configurations.
 You can check cloudbeaver (`localhost:8978`), if data are streaming into the PostgresDB.
 
 ---
+Next, head over to `localhost:5000` to use the map. 
+
+![Picture5!](<README/photos/aiswebsite.png>)
+---
 ### Stop the containers
 ```linux
 # stop running the containers and remove the network for shopping list
