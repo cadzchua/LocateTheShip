@@ -1,47 +1,65 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="utf-8">
-    <link rel="shortcut icon" href="https://www.freeiconspng.com/uploads/ship-travel-cruise-tourism-travel-icon-png-ship-png-ship-icon-29.png">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+  <head>
+    <meta charset="utf-8" />
+    <link
+      rel="shortcut icon"
+      href="https://www.freeiconspng.com/uploads/ship-travel-cruise-tourism-travel-icon-png-ship-png-ship-icon-29.png"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ship Map</title>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/index_style.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-</head>
-<body>
-    <div class="map-container">
-        {{ map_html | safe }}
-    </div>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="{{ url_for('static', filename='css/index_style.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="map-container">{{ map_html | safe }}</div>
     <div class="filter-forms">
-        <div class="filter-header">
-            <button class="button1" id="myButton">
-                <i class="fas fa-home"></i> 
-            </button>
-            <h2>Filter Data</h2>
-            <button class="button1" id="myButton2" onclick="toggleForm()">-</button>
+      <div class="filter-header">
+        <button class="button1" id="myButton">
+          <i class="fas fa-home"></i>
+        </button>
+        <h2>Filter Data</h2>
+        <button class="button1" id="myButton2" onclick="toggleForm()">-</button>
+      </div>
+      <form
+        id="filterForm"
+        action="/filter"
+        method="post"
+        class="filter-form"
+        onsubmit="submitForm(event)"
+      >
+        <div class="form-group">
+          <label for="shipName">Ship Name:</label><br />
+          <input type="text" id="shipName" name="shipNames" /><br />
+          <label for="mmsi">MMSI:</label><br />
+          <input type="text" id="mmsi" name="mmsi" /><br />
+          <label for="datetime">Start Date/Time:</label><br />
+          <input type="datetime-local" id="datetime1" name="timeRange1" /><br />
+          <label for="datetime">End Date/Time:</label><br />
+          <input type="datetime-local" id="datetime2" name="timeRange2" /><br />
         </div>
-        <form id="filterForm" action="/filter" method="post" class="filter-form" onsubmit="submitForm(event)">
-            <div class="form-group">
-                <div class="entryarea">
-                    <input type="text" id="shipName" name="shipNames">
-                    <div class="labelline1">Enter Ship Name</div>
-                </div>
-                <div class="entryarea2">
-                    <input type="text" id="mmsi" name="mmsi">
-                    <div class="labelline2">Enter Ship MMSI</div>
-                </div>
-                <label for="datetime">Start Date/Time:</label><br>
-                <input type="datetime-local" id="datetime1" name="timeRange1"><br>
-                <label for="datetime">End Date/Time:</label><br>
-                <input type="datetime-local" id="datetime2" name="timeRange2"><br>
-            </div>
-            <div class="button-container">
-                <button id="query" type="button" onclick="clearFormData()">Clear Query</button>
-                <button id="search" type="submit" class="btn btn-primary" onclick="saveFormData()">Search</button>
-            </div>
-        </form>
+        <div class="button-container">
+          <button id="query" type="button" onclick="clearFormData()">
+            Clear Query
+          </button>
+          <button
+            id="search"
+            type="submit"
+            class="btn btn-primary"
+            onclick="saveFormData()"
+          >
+            Search
+          </button>
+        </div>
+      </form>
     </div>
     <script src="static/js/script.js"></script>
-</body>
-
+  </body>
 </html>
