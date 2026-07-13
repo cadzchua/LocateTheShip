@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LocateTheShip — Maritime Traffic Console</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1 L19 21 L12 16.5 L5 21 Z' fill='%233987e5'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/console.css') }}" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path d="M12 1 L19 21 L12 16.5 L5 21 Z" fill="var(--accent)" />
+        </svg>
+        <div>
+          <div class="brand-name">LocateTheShip</div>
+          <div class="brand-sub">Maritime Traffic Console</div>
+        </div>
+      </div>
+
+      <div class="kpis" role="status">
+        <div class="kpi">
+          <div class="kpi-value" id="kpiVessels">–</div>
+          <div class="kpi-label">Vessels</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-value" id="kpiReports">–</div>
+          <div class="kpi-label">Reports</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-value" id="kpiUpdated">–</div>
+          <div class="kpi-label">Last report</div>
+        </div>
+      </div>
+
+      <div class="topbar-controls">
+        <span class="pill" id="statusPill" data-state="connecting">
+          <span class="pill-dot"></span><span id="statusText">Connecting</span>
+        </span>
+        <label class="control-label" for="refreshInterval">Refresh</label>
+        <select id="refreshInterval" title="Refresh interval">
+          <option value="10">10s</option>
+          <option value="30" selected>30s</option>
+          <option value="60">60s</option>
+          <option value="0">Off</option>
+        </select>
+        <button class="btn" id="pauseBtn" title="Pause / resume live updates">Pause</button>
+        <button class="btn" id="exportBtn" title="Download current view as CSV">Export CSV</button>
+        <button class="btn btn-icon" id="themeBtn" title="Toggle light / dark theme">◐</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="search-row">
+          <input type="search" id="search" placeholder="Search vessel name or MMSI  ( / )" autocomplete="off" />
+        </div>
+
+        <details class="filters" id="filtersBox">
+          <summary>Filters <span class="filters-badge" id="filtersBadge" hidden></span></summary>
+          <div class="filters-body">
+            <label for="fShipNames">Ship names (comma separated, % wildcard)</label>
+            <input type="text" id="fShipNames" placeholder="EVER GIVEN, MAERSK%" />
+            <label for="fMmsi">MMSI (comma separated)</label>
+            <input type="text" id="fMmsi" placeholder="563012345, 566234000" />
+            <label for="fSource">Data source</label>
+            <select id="fSource"><option value="">All sources</option></select>
+            <label>Time range</label>
+            <div class="chip-row" id="quickChips">
+              <button type="button" data-mins="15">15m</button>
+              <button type="button" data-mins="60">1h</button>
+              <button type="button" data-mins="360">6h</button>
+              <button type="button" data-mins="1440">24h</button>
+              <button type="button" data-mins="">All</button>
+            </div>
+            <div class="range-row">
+              <input type="datetime-local" id="fStart" title="Start" />
+              <span>→</span>
+              <input type="datetime-local" id="fEnd" title="End" />
+            </div>
+            <div class="filters-actions">
+              <button class="btn btn-ghost" id="resetBtn">Reset</button>
+              <button class="btn btn-primary" id="applyBtn">Apply</button>
+            </div>
+          </div>
+        </details>
+
+        <div class="list-head">
+          <span id="listCount" class="list-count">0 vessels</span>
+          <select id="sortBy" title="Sort vessels">
+            <option value="latest">Sort: Latest</option>
+            <option value="name">Sort: Name</option>
+            <option value="speed">Sort: Speed</option>
+            <option value="reports">Sort: Reports</option>
+          </select>
+        </div>
+        <ul id="vesselList" class="vessel-list" tabindex="0"></ul>
+      </aside>
+
+      <main class="map-wrap">
+        <div id="map"></div>
+
+        <button class="btn map-fit" id="fitBtn" title="Fit map to all vessels">⛶ Fit</button>
+
+        <section class="detail" id="detail" hidden aria-label="Vessel details">
+          <header class="detail-head">
+            <span class="detail-swatch" id="dSwatch"></span>
+            <div class="detail-title">
+              <div class="detail-name" id="dName">—</div>
+              <div class="detail-mmsi" id="dMmsi">—</div>
+            </div>
+            <button class="btn btn-icon" id="detailClose" title="Close (Esc)">✕</button>
+          </header>
+          <dl class="detail-grid">
+            <div><dt>Position</dt><dd id="dPos">—</dd></div>
+            <div><dt>Last report</dt><dd id="dTime">—</dd></div>
+            <div><dt>Speed (SOG)</dt><dd id="dSog">—</dd></div>
+            <div><dt>Course (COG)</dt><dd id="dCog">—</dd></div>
+            <div><dt>Heading</dt><dd id="dHeading">—</dd></div>
+            <div><dt>Nav status</dt><dd id="dNav">—</dd></div>
+            <div><dt>Reports</dt><dd id="dReports">—</dd></div>
+            <div><dt>First seen</dt><dd id="dFirst">—</dd></div>
+            <div><dt>Source</dt><dd id="dSource">—</dd></div>
+          </dl>
+          <div class="detail-actions">
+            <button class="btn btn-ghost" id="copyCoords">Copy coordinates</button>
+            <button class="btn btn-primary" id="focusVessel">Focus on map</button>
+          </div>
+        </section>
+
+        <div class="overlay" id="overlay" hidden>
+          <div class="overlay-card">
+            <svg viewBox="0 0 24 24" width="40" height="40" class="overlay-icon" aria-hidden="true">
+              <path d="M12 1 L19 21 L12 16.5 L5 21 Z" fill="var(--accent)" />
+            </svg>
+            <h2 id="overlayTitle">Connecting…</h2>
+            <p id="overlayText"></p>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" hidden></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="{{ url_for('static', filename='js/console.js') }}"></script>
+  </body>
+</html>
