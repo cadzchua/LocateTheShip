@@ -26,13 +26,21 @@ docker compose up -d --build
 
 Then open http://localhost:5000 and click through to the map. On a cold start the pipeline needs a minute or two before the first ships appear because Kafka, ksqlDB and Connect have to come up and the bootstrap has to run. The website shows a warming up page and retries automatically until data arrives.
 
+![Home page](README/photos/aiswebsite_home.png)
+
 To use your own aisstream.io API key, copy `.env.example` to `.env` and set `AISSTREAM_API_KEY`. Without it a built in demo key is used. The tracked area is defined by the bounding box in the `SUBSCRIPTION_JSON` block of `docker-compose.yml` and currently covers the waters around Singapore and the Malacca Strait.
 
 ### Map features
 
 The map shows each ship's latest position as a small directional arrow rotated to its true heading (or course over ground when no heading is reported), colored consistently per ship across refreshes. Older reports appear as small dots connected by a track line. Hovering a marker shows the ship name, speed and report time. Clicking a marker opens the full details including MMSI, position, speed over ground, course over ground, heading, navigational status and the data source.
 
-The filter panel supports comma separated ship names and MMSIs, a data source selector, a start and end time, and quick range buttons for the last 15 minutes, hour, 6 hours or 24 hours. An auto refresh toggle reloads the current view at a chosen interval, which keeps the picture live for monitoring. A stats bar shows how many ships and reports match the current query and the covered time window.
+![Live traffic around Singapore with directional ship markers](README/photos/aiswebsite_map_zoom.png)
+
+![Ship details popup with speed, course, heading and navigational status](README/photos/aiswebsite_popup.png)
+
+The filter panel supports comma separated ship names and MMSIs, a data source selector, a start and end time, and quick range buttons for the last 15 minutes, hour, 6 hours or 24 hours. An auto refresh toggle reloads the current view at a chosen interval, which keeps the picture live for monitoring. A stats bar shows how many ships and reports match the current query and the covered time window. The initial view fits all reported positions, like this overview of the full tracked bounding box.
+
+![Overview of the tracked area](README/photos/aiswebsite_map.png)
 
 ### Optional tooling
 
