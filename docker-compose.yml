@@ -29,7 +29,13 @@ services:
       KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs"
       CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
       KAFKA_METRIC_REPORTERS: "io.confluent.metrics.reporter.ConfluentMetricsReporter"
-      KAFKA_CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: "broker:9092"
+      KAFKA_CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: "broker:29092"
+      # Single-node overrides: cp-server defaults these internal topics to
+      # replication factor 3 and exits fatally on startup when it cannot
+      # place the replicas on one broker.
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+      CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
 
   # a centralized schema management solution for Kafka topics.
   # It acts as a service that stores and manages schemas for the messages exchanged in Kafka topics.
