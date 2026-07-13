@@ -61,6 +61,9 @@ services:
     environment:
       CONNECT_BOOTSTRAP_SERVERS: "broker:29092"
       CONNECT_REST_ADVERTISED_HOST_NAME: connect
+      # Required by the image's healthcheck.sh; without it the container
+      # reports unhealthy even though the REST API is up.
+      CONNECT_REST_PORT: 8083
       CONNECT_GROUP_ID: compose-connect-group
       CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
       CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
