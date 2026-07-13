@@ -1,7 +1,2 @@
 websockets
-avro-python3
-schedule
-confluent_kafka
-urllib3
-requests
-fastavro
+confluent-kafka[avro,schemaregistry]
