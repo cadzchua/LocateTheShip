@@ -1,13 +1,10 @@
 from flask import Flask
 from flask import render_template, request, redirect, url_for
-import folium, random, math, os, psycopg2, branca
+import folium, colorsys, hashlib, os, psycopg2, branca
 from collections import defaultdict
 from datetime import datetime
 
 app = Flask(__name__)
-
-prev_points = defaultdict(list)
-mmsi_colors = {}  # Track colors for each MMSI
 
 DATA_STORE_HOST = os.environ.get("DATA_STORE_HOST", "localhost")
 DATA_STORE_PORT = os.environ.get("DATA_STORE_PORT", "5432")
@@ -16,178 +13,299 @@ DATA_STORE_USER = os.environ.get("DATA_STORE_USER", "sa")
 DATA_STORE_PASSWORD = os.environ.get("DATA_STORE_PASSWORD", "YourStrongPassword123")
 DATA_STORE_TABLE = os.environ.get("DATA_STORE_TABLE", "aisstream_combined")
 
-def query(shipname: list, mmsi: list, startdate: str, enddate: str):
-    """
-    Generates SQL query with optional filters.
-    """
-    ship_name_condition, mmsi_condition, time_range_condition = "", "", ""
-    if shipname != ['']:
-        ship_name_condition = " OR ".join([f"""TRIM("AIS_SHIP_NAME") ILIKE '{name}'""" for name in shipname])
-    if mmsi != ['']:
-        mmsi_condition = " OR ".join([f""""AIS_MMSI" = '{mmsi}'""" for mmsi in mmsi])
+COLUMNS = [
+    "AIS_SHIP_NAME",
+    "AIS_MMSI",
+    "AIS_LATITUDE",
+    "AIS_LONGITUDE",
+    "AIS_TIME",
+    "AIS_SOG",
+    "AIS_COG",
+    "AIS_HEADING",
+    "AIS_NAV_STATUS",
+    "AIS_SOURCE",
+]
+COLUMN_SQL = ", ".join(f'"{col}"' for col in COLUMNS)
 
-    # Construct the SQL query with the filters
-    sql_query = f"SELECT * FROM {DATA_STORE_TABLE} WHERE "
-    conditions1 = []
-    conditions2 = []
-    if mmsi_condition:
-        conditions1.append(mmsi_condition)
-    if ship_name_condition:
-        conditions1.append(ship_name_condition)
+# ITU-R M.1371 navigational status codes
+NAV_STATUS_LABELS = {
+    0: "Under way using engine",
+    1: "At anchor",
+    2: "Not under command",
+    3: "Restricted manoeuvrability",
+    4: "Constrained by draught",
+    5: "Moored",
+    6: "Aground",
+    7: "Engaged in fishing",
+    8: "Under way sailing",
+    11: "Towing astern",
+    12: "Pushing ahead / towing alongside",
+    14: "AIS-SART / MOB / EPIRB",
+    15: "Undefined",
+}
+
+SOG_NOT_AVAILABLE = 102.3
+COG_NOT_AVAILABLE = 360.0
+HEADING_NOT_AVAILABLE = 511
+
+
+def build_query(shipnames, mmsis, startdate, enddate, source):
+    """
+    Builds a parameterized SQL query. Ship name and MMSI filters are ORed
+    together (match any of the requested ships), then ANDed with the time
+    range and source filters.
+    """
+    conditions, params = [], []
+
+    identity = []
+    for name in shipnames:
+        identity.append('TRIM("AIS_SHIP_NAME") ILIKE %s')
+        params.append(name)
+    for mmsi in mmsis:
+        identity.append('"AIS_MMSI" = %s')
+        params.append(mmsi)
+    if identity:
+        conditions.append("(" + " OR ".join(identity) + ")")
+
     if startdate:
-        conditions2.append(f'"AIS_TIME" >= \'{startdate}\'')
+        conditions.append('"AIS_TIME" >= %s')
+        params.append(startdate)
     if enddate:
-        conditions2.append(f'"AIS_TIME" <= \'{enddate}\'')
+        conditions.append('"AIS_TIME" <= %s')
+        params.append(enddate)
+    if source:
+        conditions.append('"AIS_SOURCE" = %s')
+        params.append(source)
 
-    if conditions1 and conditions2: 
-        sql_query += " OR ".join(conditions1) + " AND " + " AND ".join(conditions2)             
-    elif conditions1:
-        sql_query += " OR ".join(conditions1)
-    elif conditions2:
-        sql_query += " AND ".join(conditions2)
-    else:
-        # If no filters are applied, retrieve all records
-        sql_query += "1=1;"
-    return sql_query
+    where = " AND ".join(conditions) if conditions else "1=1"
+    sql = f'SELECT {COLUMN_SQL} FROM {DATA_STORE_TABLE} WHERE {where} ORDER BY "AIS_TIME" ASC'
+    return sql, params
+
 
 def connect_to_postgres():
     """
     Establishes a connection to the PostgreSQL database.
     """
-    conn = psycopg2.connect(
+    return psycopg2.connect(
         host=DATA_STORE_HOST,
         port=DATA_STORE_PORT,
         database=DATA_STORE_DATABASE,
         user=DATA_STORE_USER,
         password=DATA_STORE_PASSWORD,
     )
-    return conn
 
-def execute_sql_query(sql):
+
+def execute_sql_query(sql, params=None):
     """
-    Executes SQL query.
+    Executes SQL query and returns all rows.
     """
     conn = connect_to_postgres()
-    cursor = conn.cursor()
-    cursor.execute(sql)
-    result = cursor.fetchall()
-    conn.close()  
-    return result
+    try:
+        cursor = conn.cursor()
+        cursor.execute(sql, params or [])
+        return cursor.fetchall()
+    finally:
+        conn.close()
 
-def generate_random_color():
-    """
-    Generate a random color in hex format.
-    """
-    r = lambda: random.randint(0, 255)
-    return '#{:02x}{:02x}{:02x}'.format(r(), r(), r())
 
-def calculate_bearing(point1, point2):
-    """ 
-    Calculates the bearing given two points.
+def fetch_sources():
     """
-    lon1, lat1 = point1
-    lon2, lat2 = point2
-    delta_lon = math.radians(lon2 - lon1)
-    lat1 = math.radians(lat1)
-    lat2 = math.radians(lat2)
-    x = math.sin(delta_lon) * math.cos(lat2)
-    y = math.cos(lat1) * math.sin(lat2) - (math.sin(lat1) * math.cos(lat2) * math.cos(delta_lon))
-    initial_bearing = math.atan2(x, y)
-    initial_bearing = math.degrees(initial_bearing)
-    compass_bearing = (initial_bearing + 360) % 360
+    Distinct data sources present in the table, for the filter dropdown.
+    """
+    try:
+        rows = execute_sql_query(f'SELECT DISTINCT "AIS_SOURCE" FROM {DATA_STORE_TABLE}')
+        return sorted(row[0] for row in rows if row[0])
+    except psycopg2.Error:
+        return []
 
-    return compass_bearing
+
+def color_for_mmsi(mmsi):
+    """
+    Deterministic per-ship color, stable across page refreshes so analysts
+    can visually re-identify a track after filtering or reloading.
+    """
+    hue = int(hashlib.md5(str(mmsi).encode()).hexdigest(), 16) % 360
+    r, g, b = colorsys.hls_to_rgb(hue / 360.0, 0.42, 0.75)
+    return "#{:02x}{:02x}{:02x}".format(int(r * 255), int(g * 255), int(b * 255))
+
+
+def fmt_sog(sog):
+    if sog is None or sog >= SOG_NOT_AVAILABLE:
+        return "N/A"
+    return f"{sog:.1f} kn"
+
+
+def fmt_cog(cog):
+    if cog is None or cog >= COG_NOT_AVAILABLE:
+        return "N/A"
+    return f"{cog:.1f}°"
+
+
+def fmt_heading(heading):
+    if heading is None or heading == HEADING_NOT_AVAILABLE:
+        return "N/A"
+    return f"{heading}°"
+
+
+def fmt_nav_status(nav_status):
+    if nav_status is None:
+        return "N/A"
+    return NAV_STATUS_LABELS.get(nav_status, f"Code {nav_status}")
+
+
+def rotation_for(point):
+    """
+    Best available bearing for the ship icon: true heading when the
+    transponder reports one, otherwise course over ground, otherwise none.
+    """
+    heading, cog = point["heading"], point["cog"]
+    if heading is not None and 0 <= heading < HEADING_NOT_AVAILABLE:
+        return heading
+    if cog is not None and 0 <= cog < COG_NOT_AVAILABLE:
+        return cog
+    return None
+
+
+def ship_icon_html(color, rotation):
+    """
+    A small (18px) directional vessel marker. Kept deliberately compact so
+    dense traffic areas stay readable; the ship name lives in the hover
+    tooltip instead of a permanent label.
+    """
+    rot = rotation if rotation is not None else 0
+    return f"""
+    <div style="transform: rotate({rot}deg); width:18px; height:18px;">
+      <svg viewBox="0 0 24 24" width="18" height="18">
+        <path d="M12 1 L19 21 L12 16.5 L5 21 Z" fill="{color}" stroke="#1f2937" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    """
+
+
+def popup_for(point):
+    html = f"""
+    <div style="font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5;">
+        <h3 style="margin: 0 0 6px 0;">{point['ship_name'].strip() or 'Unknown vessel'}</h3>
+        <strong>MMSI:</strong> {point['mmsi']}<br/>
+        <strong>Time:</strong> {point['time_str']}<br/>
+        <strong>Position:</strong> {point['lat']:.5f}, {point['lon']:.5f}<br/>
+        <strong>Speed (SOG):</strong> {fmt_sog(point['sog'])}<br/>
+        <strong>Course (COG):</strong> {fmt_cog(point['cog'])}<br/>
+        <strong>Heading:</strong> {fmt_heading(point['heading'])}<br/>
+        <strong>Nav status:</strong> {fmt_nav_status(point['nav_status'])}<br/>
+        <strong>Source:</strong> {point['source'] or 'unknown'}
+    </div>
+    """
+    iframe = branca.element.IFrame(html=html, width=300, height=230)
+    return folium.Popup(iframe)
+
+
+def parse_rows(query_result):
+    """
+    Groups raw rows into per-ship tracks ordered by time.
+    """
+    tracks = defaultdict(list)
+    for row in query_result:
+        ship_name, mmsi, lat, lon, time_str, sog, cog, heading, nav_status, source = row
+        try:
+            time = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+        except (TypeError, ValueError):
+            continue
+        tracks[mmsi].append({
+            "ship_name": ship_name or "",
+            "mmsi": mmsi,
+            "lat": lat,
+            "lon": lon,
+            "time": time,
+            "time_str": time_str,
+            "sog": sog,
+            "cog": cog,
+            "heading": heading,
+            "nav_status": nav_status,
+            "source": source,
+        })
+    for points in tracks.values():
+        points.sort(key=lambda p: p["time"])
+    return tracks
+
 
 def map_plot(query_result):
     """
-    Plots ship locations on a map based on query result.
+    Plots ship tracks on a map. The latest position of each ship gets a
+    directional icon; older positions are small dots along the track line.
+    Returns (map_html, stats).
     """
-    prev_points.clear()
-    if not query_result:
-        return "There is no ship!"
-    
-    latest_ships = {}
-    map = folium.Map(location=[query_result[0][2], query_result[0][3]], zoom_start=10)
-    for idx, row in enumerate(query_result):
-        ship_name, mmsi, lat, lon, time_str = row
-        time = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
+    tracks = parse_rows(query_result)
+    stats = {
+        "ships": len(tracks),
+        "points": sum(len(points) for points in tracks.values()),
+        "start": None,
+        "end": None,
+    }
+    if not tracks:
+        return None, stats
 
-        if mmsi not in latest_ships or time > latest_ships[mmsi][1]:
-            latest_ships[mmsi] = (ship_name, time)
-    print(latest_ships)
-    for idx, row in enumerate(query_result):
-        ship_name, mmsi, lat, lon, time_str = row
-        time = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
-        
-        # Determine border style based on whether it's the latest ship or not
-        latest_ship_name, latest_time = latest_ships[mmsi]
-        is_latest_ship = (ship_name, time) == (latest_ship_name, latest_time)
-        # Determine border style based on whether it's the latest ship or not
-        border_style = "font-weight: bold;" if is_latest_ship else ""
-        # Create ship icon marker
-        ship_icon_path = "static/images/ship.png"
-        # Ship Icon + Ship Name
-        ship_icon_with_name_html = f"""
-        <div style="position:relative; text-align:center;">
-            <img src="{ship_icon_path}" style="width:30px; height:30px;">
-            <div style="{border_style}">{ship_name.strip()}</div>
-        </div>
-        """
-        # Customised Pop Up Box
-        popup_css = """
-        <style>
-        .popup-container {
-            width: auto; 
-            height: auto; 
-        }
-        </style>
-        """
-        pop_up_html = f"""
-        <div class="popup-container">
-            <h2><strong>Ship Information:</strong></h2>
-            <strong>Source:</strong> aisstream.io<br/>
-            <strong>Ship Name:</strong> {ship_name}<br/>
-            <strong>Ship MMSI:</strong> {mmsi}<br/>
-            <strong>Time:</strong> {time_str}<br/>
-            <p>
-            <strong>Location:</strong><br/>
-            <strong>Latitude:</strong> {lat}<br/>
-            <strong>Longitude:</strong> {lon}
-            </p>
-        </div>
-        """
-        popup_html = popup_css + pop_up_html
-        iframe = branca.element.IFrame(html=popup_html, width=320, height=250)
-        popup = folium.Popup(iframe)
+    all_times = [p["time"] for points in tracks.values() for p in points]
+    stats["start"] = min(all_times).strftime("%Y-%m-%d %H:%M:%S")
+    stats["end"] = max(all_times).strftime("%Y-%m-%d %H:%M:%S")
 
-        marker = folium.Marker([lat, lon], icon=folium.DivIcon(html=ship_icon_with_name_html), popup=popup)
+    lats = [p["lat"] for points in tracks.values() for p in points]
+    lons = [p["lon"] for points in tracks.values() for p in points]
+    map = folium.Map(location=[sum(lats) / len(lats), sum(lons) / len(lons)], zoom_start=10)
+    if len(lats) > 1:
+        map.fit_bounds([[min(lats), min(lons)], [max(lats), max(lons)]], padding=(30, 30))
+
+    for mmsi, points in tracks.items():
+        color = color_for_mmsi(mmsi)
+        latest = points[-1]
+        display_name = latest["ship_name"].strip() or str(mmsi)
+
+        if len(points) > 1:
+            line = folium.PolyLine(
+                locations=[[p["lat"], p["lon"]] for p in points],
+                color=color,
+                weight=2,
+                opacity=0.8,
+            )
+            map.add_child(line)
+
+        for point in points[:-1]:
+            dot = folium.CircleMarker(
+                location=[point["lat"], point["lon"]],
+                radius=3,
+                color=color,
+                fill=True,
+                fill_opacity=0.9,
+                weight=1,
+                tooltip=f"{display_name} • {point['time_str']} • {fmt_sog(point['sog'])}",
+            )
+            map.add_child(dot)
+
+        marker = folium.Marker(
+            [latest["lat"], latest["lon"]],
+            icon=folium.DivIcon(
+                html=ship_icon_html(color, rotation_for(latest)),
+                icon_size=(18, 18),
+                icon_anchor=(9, 9),
+            ),
+            tooltip=f"{display_name} • {fmt_sog(latest['sog'])} • {latest['time_str']}",
+            popup=popup_for(latest),
+        )
         map.add_child(marker)
-        
-        prev_mmsi_points = prev_points[mmsi]
-        if prev_mmsi_points:
-            prev_lon, prev_lat, prev_time = prev_mmsi_points[-1]
-            # Check if there are any intermediate points
-            intermediate_points = any(point[2] > prev_time and point[2] < time for point in prev_mmsi_points)
-            if not intermediate_points:
-                # Determine color for the current MMSI
-                if mmsi not in mmsi_colors:
-                    mmsi_colors[mmsi] = generate_random_color()
-                color = mmsi_colors[mmsi]
-                
-                # Draw line between previous point and current point using the same color
-                line = folium.PolyLine(locations=[[prev_lat, prev_lon], [lat, lon]], color=color)
-                map.add_child(line)
 
-                # Calculate bearing between two consecutive points
-                bearing = calculate_bearing((prev_lon, prev_lat), (lon, lat))
+    return map._repr_html_(), stats
 
-                # Add arrow marker at the end of the line using a regular polygon marker
-                arrow = folium.RegularPolygonMarker(location=((lat + prev_lat) / 2, (lon + prev_lon) / 2), color=color, fill_color=color, weight=6, number_of_sides=3, radius=7, rotation=bearing - 90)
-                map.add_child(arrow)
-        prev_points[mmsi].append((lon, lat, time))
 
-    map_html = map._repr_html_()
-    return map_html
+def render_map_page(query_result, warning=None):
+    map_html, stats = map_plot(query_result)
+    return render_template(
+        "index.html",
+        map_html=map_html,
+        stats=stats,
+        warning=warning,
+        sources=fetch_sources(),
+    )
+
 
 @app.route('/')
 def home():
@@ -196,37 +314,57 @@ def home():
     """
     return render_template('home.html')
 
+
 @app.route('/map', methods=['GET', 'POST'])
 def map():
     """
     Loads an initial map with all the ships in DB
     """
     if request.method == 'POST':
-
         return redirect(url_for('map'))
-    sql_query = f"SELECT * FROM {DATA_STORE_TABLE}"
-    query_result = execute_sql_query(sql_query)
-    map_html = map_plot(query_result)
-    return render_template('index.html', map_html=map_html)
+    sql, params = build_query([], [], "", "", "")
+    try:
+        query_result = execute_sql_query(sql, params)
+        warning = None
+    except psycopg2.Error:
+        # Table does not exist yet or DB is unreachable: the pipeline is
+        # still warming up on first start, so show a friendly page that
+        # retries instead of a stack trace.
+        query_result = []
+        warning = "The data pipeline is still warming up (no data yet). This page retries automatically."
+    return render_map_page(query_result, warning)
+
 
 @app.route('/filter', methods=['GET', 'POST'])
 def filter_data():
     """
     Loads a map based on the user's query.
     """
-    mmsi = ['']
-    shipname = [name.strip() for name in request.form['shipNames'].split(",")]
-    if request.form['mmsi']:
-        mmsi = [int(name.strip()) for name in request.form['mmsi'].split(",")]
-    start_datetime = request.form['timeRange1']
-    start_datetime = start_datetime.replace('T', ' ')
-    end_datetime = request.form['timeRange2']
-    end_datetime = end_datetime.replace('T', ' ')
-    sql_query = query(shipname, mmsi, start_datetime, end_datetime)
-    print(sql_query)
-    query_result = execute_sql_query(sql_query)
-    map_html = map_plot(query_result)
-    return render_template('index.html', map_html=map_html)
+    if request.method == 'GET':
+        return redirect(url_for('map'))
+
+    shipnames = [name.strip() for name in request.form.get('shipNames', '').split(",") if name.strip()]
+    mmsis = []
+    for token in request.form.get('mmsi', '').split(","):
+        token = token.strip()
+        if token:
+            try:
+                mmsis.append(int(token))
+            except ValueError:
+                pass
+    start_datetime = request.form.get('timeRange1', '').replace('T', ' ')
+    end_datetime = request.form.get('timeRange2', '').replace('T', ' ')
+    source = request.form.get('source', '').strip()
+
+    sql, params = build_query(shipnames, mmsis, start_datetime, end_datetime, source)
+    try:
+        query_result = execute_sql_query(sql, params)
+        warning = None
+    except psycopg2.Error:
+        query_result = []
+        warning = "The data pipeline is still warming up (no data yet). This page retries automatically."
+    return render_map_page(query_result, warning)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

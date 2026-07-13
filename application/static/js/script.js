@@ -1,16 +1,31 @@
+function getField(id) {
+  return document.getElementById(id);
+}
+
 function saveFormData() {
   var formData = {
-    shipName: document.getElementById("shipName").value,
-    mmsi: document.getElementById("mmsi").value,
-    datetime1: document.getElementById("datetime1").value,
-    datetime2: document.getElementById("datetime2").value,
+    shipName: getField("shipName").value,
+    mmsi: getField("mmsi").value,
+    source: getField("source") ? getField("source").value : "",
+    datetime1: getField("datetime1").value,
+    datetime2: getField("datetime2").value,
   };
   localStorage.setItem("formData", JSON.stringify(formData));
 }
 
 function clearFormData() {
   localStorage.removeItem("formData");
-  location.reload();
+  window.location.href = "/map";
+}
+
+function hasActiveFilter() {
+  return (
+    getField("shipName").value ||
+    getField("mmsi").value ||
+    (getField("source") && getField("source").value) ||
+    getField("datetime1").value ||
+    getField("datetime2").value
+  );
 }
 
 function toggleForm() {
@@ -30,33 +45,89 @@ function toggleForm() {
   }
 }
 
+function toLocalDatetimeValue(date) {
+  function pad(n) {
+    return String(n).padStart(2, "0");
+  }
+  return (
+    date.getFullYear() +
+    "-" +
+    pad(date.getMonth() + 1) +
+    "-" +
+    pad(date.getDate()) +
+    "T" +
+    pad(date.getHours()) +
+    ":" +
+    pad(date.getMinutes())
+  );
+}
+
+function setQuickRange(minutes) {
+  if (minutes === null) {
+    getField("datetime1").value = "";
+    getField("datetime2").value = "";
+  } else {
+    var now = new Date();
+    var start = new Date(now.getTime() - minutes * 60 * 1000);
+    getField("datetime1").value = toLocalDatetimeValue(start);
+    getField("datetime2").value = "";
+  }
+  saveFormData();
+  document.getElementById("filterForm").submit();
+}
+
+var autoRefreshTimer = null;
+
+function refreshNow() {
+  if (localStorage.getItem("autoRefresh") !== "true") {
+    return;
+  }
+  if (hasActiveFilter()) {
+    saveFormData();
+    document.getElementById("filterForm").submit();
+  } else {
+    window.location.href = "/map";
+  }
+}
+
+function scheduleAutoRefresh() {
+  var enabled = localStorage.getItem("autoRefresh") === "true";
+  var interval = parseInt(localStorage.getItem("refreshInterval") || "30", 10);
+  getField("autoRefresh").checked = enabled;
+  getField("refreshInterval").value = String(interval);
+  if (autoRefreshTimer !== null) {
+    clearTimeout(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+  if (enabled) {
+    autoRefreshTimer = setTimeout(refreshNow, interval * 1000);
+  }
+}
+
 window.onload = function () {
   var savedFormData = localStorage.getItem("formData");
   if (savedFormData) {
     var formData = JSON.parse(savedFormData);
-    if (formData.shipName) {
-      document.getElementById("shipName").value = formData.shipName;
-      document.querySelector(".labelline1").style.transform =
-        "translate(-5px, -30px) scale(0.88)";
-      document.querySelector(".labelline1").style.color = "#1372de";
-      document.querySelector(".labelline1").style.fontWeight = "bold";
-      document.querySelector(".labelline1").style.backgroundColor =
-        "rgb(255, 255, 255)";
-      document.querySelector(".labelline1").style.zIndex = "1112";
+    getField("shipName").value = formData.shipName || "";
+    getField("mmsi").value = formData.mmsi || "";
+    if (getField("source")) {
+      getField("source").value = formData.source || "";
     }
-    if (formData.mmsi) {
-      document.getElementById("mmsi").value = formData.mmsi;
-      document.querySelector(".labelline2").style.transform =
-        "translate(-5px, -30px) scale(0.88)";
-      document.querySelector(".labelline2").style.color = "#1372de";
-      document.querySelector(".labelline2").style.fontWeight = "bold";
-      document.querySelector(".labelline2").style.backgroundColor =
-        "rgb(255, 255, 255)";
-      document.querySelector(".labelline2").style.zIndex = "1112";
-    }
-    document.getElementById("datetime1").value = formData.datetime1;
-    document.getElementById("datetime2").value = formData.datetime2;
+    getField("datetime1").value = formData.datetime1 || "";
+    getField("datetime2").value = formData.datetime2 || "";
   }
+
+  getField("autoRefresh").addEventListener("change", function () {
+    localStorage.setItem("autoRefresh", this.checked ? "true" : "false");
+    if (this.checked) {
+      scheduleAutoRefresh();
+    }
+  });
+  getField("refreshInterval").addEventListener("change", function () {
+    localStorage.setItem("refreshInterval", this.value);
+  });
+
+  scheduleAutoRefresh();
 };
 
 document.getElementById("myButton").addEventListener("click", function () {

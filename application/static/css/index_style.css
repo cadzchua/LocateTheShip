@@ -35,7 +35,9 @@ label {
     font-weight: bold;
 }
 
-input[type="datetime-local"] {
+input[type="datetime-local"],
+.filter-form input[type="text"],
+.filter-form select {
     margin-bottom: 5px;
     width: 100%;
     padding: 8px;
@@ -43,6 +45,111 @@ input[type="datetime-local"] {
     border: 1.4px solid #000000;
     border-radius: 4px;
     box-sizing: border-box;
+    background-color: #ffffff;
+    font-size: 14px;
+}
+
+.quick-range {
+    display: flex;
+    gap: 4px;
+    margin: 5px 0 10px 0;
+}
+
+.quick-range button {
+    flex: 1;
+    padding: 5px 0;
+    border: 1.4px solid #000000;
+    border-radius: 4px;
+    background-color: #f1f5f9;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.quick-range button:hover {
+    background-color: #cfe3ff;
+}
+
+.auto-refresh-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.auto-refresh-row label {
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.auto-refresh-row select {
+    width: 70px;
+    padding: 4px;
+    border: 1.4px solid #000000;
+    border-radius: 4px;
+}
+
+.stats-bar {
+    position: absolute;
+    top: 10px;
+    left: 55px;
+    z-index: 2;
+    display: flex;
+    gap: 16px;
+    padding: 8px 14px;
+    background-color: #ffffffee;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+    font-size: 13px;
+    font-weight: bold;
+    color: #1f2937;
+}
+
+.stats-bar i {
+    margin-right: 4px;
+    color: #1372de;
+}
+
+.warning-banner {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    padding: 10px 18px;
+    background-color: #fff7e0;
+    border: 1.4px solid #d97706;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #92400e;
+}
+
+.empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: linear-gradient(160deg, #eaf4fb 0%, #d7e9f7 100%);
+}
+
+.empty-state-card {
+    max-width: 420px;
+    padding: 32px;
+    text-align: center;
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.empty-state-icon {
+    font-size: 42px;
+    color: #1372de;
+    margin-bottom: 12px;
+}
+
+.empty-state-hint {
+    color: #6b7280;
+    font-size: 12px;
 }
 
 .button-container {
