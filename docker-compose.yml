@@ -1,5 +1,6 @@
 ---
-version: "2"
+# Compose V2 (docker compose) infers the spec version; an explicit
+# version key would conflict with profiles/healthcheck conditions below.
 services:
   broker:
     image: confluentinc/cp-server:7.4.1
@@ -96,11 +97,12 @@ services:
         #
         sleep infinity
 
-  # GUI to manage confluent clusters
+  # GUI to manage confluent clusters (optional, start with: docker compose --profile tools up)
   control-center:
     image: confluentinc/cp-enterprise-control-center:7.4.1
     hostname: control-center
     container_name: control-center
+    profiles: ["tools"]
     depends_on:
       - broker
       - schema-registry
@@ -150,6 +152,7 @@ services:
   ksqldb-cli:
     image: confluentinc/cp-ksqldb-cli:7.4.1
     container_name: ksqldb-cli
+    profiles: ["tools"]
     depends_on:
       - broker
       - connect
@@ -157,10 +160,11 @@ services:
     entrypoint: /bin/sh
     tty: true
 
-  # It provides GUI for common Databases (eg. Postgres)
+  # It provides GUI for common Databases (eg. Postgres) (optional, start with: docker compose --profile tools up)
   dbeaver:
     image: dbeaver/cloudbeaver:24.0
     container_name: dbeaver
+    profiles: ["tools"]
     volumes:
       - dbeaver_data:/root/.dbeaver4
     ports:
@@ -171,25 +175,60 @@ services:
   # Sample Postgres Database
   postgres:
     image: postgres:16.2
+    container_name: postgres
     restart: always
     environment:
       POSTGRES_USER: sa
       POSTGRES_PASSWORD: YourStrongPassword123
-
     ports:
       - "5432:5432"
     volumes:
-      - ./postgres_db:/var/lib/postgresql/aisstream
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sa -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # One-shot bootstrap: creates the ksqlDB streams and the JDBC sink
+  # connector automatically, so no manual Control Center setup is needed.
+  pipeline-init:
+    image: python:3.11-alpine
+    container_name: pipeline-init
+    volumes:
+      - ./pipeline-init/init.py:/init.py:ro
+    command: ["python", "/init.py"]
+    environment:
+      KSQLDB_URL: "http://ksqldb-server:8088"
+      CONNECT_URL: "http://connect:8083"
+      SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
+      DATA_STORE_HOST: "postgres"
+      DATA_STORE_PORT: "5432"
+      DATA_STORE_DATABASE: "postgres"
+      DATA_STORE_USER: "sa"
+      DATA_STORE_PASSWORD: "YourStrongPassword123"
+      TOPIC_NAME_1: "aisstream1"
+      TOPIC_NAME_2: "aisstream2"
+      TOPIC_COMBINED: "aisstream_combined"
+    depends_on:
+      - broker
+      - schema-registry
+      - connect
+      - ksqldb-server
+      - postgres
+    restart: on-failure
 
   # Producer to stream aisstream.io ship data to kafka
   ais-producer:
-    image: cadzchua/aisstream:1.0
+    build: ./producer
+    image: cadzchua/aisstream:2.0
+    container_name: ais-producer
     environment:
       KAFKA_BOOTSTRAP_SERVER: "broker:29092"
       SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
       SUBSCRIPTION_JSON: |
         {
-        "APIKey": "3a0365367f648ac250e0620a3ea9a81f7413da93",
+        "APIKey": "${AISSTREAM_API_KEY:-3a0365367f648ac250e0620a3ea9a81f7413da93}",
         "BoundingBoxes": [
                 [
                   [7.036229, 98.164939],
@@ -209,7 +248,9 @@ services:
     restart: always
 
   ais-website:
-    image: cadzchua/aiswebsite:1.4
+    build: ./application
+    image: cadzchua/aiswebsite:2.0
+    container_name: ais-website
     environment:
       DATA_STORE_HOST: "postgres"
       DATA_STORE_PORT: "5432"
@@ -218,14 +259,12 @@ services:
       DATA_STORE_PASSWORD: "YourStrongPassword123"
       DATA_STORE_TABLE: "aisstream_combined"
     depends_on:
-      - postgres
-      - schema-registry
-      - broker
-      - connect
-      - ksqldb-server
+      postgres:
+        condition: service_healthy
     ports:
       - "5000:5000"
     restart: always
 
 volumes:
   dbeaver_data:
+  postgres_data:
