@@ -1,0 +1,359 @@
+/* ---------------------------------------------------------------------------
+   LocateTheShip console — design tokens
+   Dark is the default operating theme; light swaps the same roles.
+--------------------------------------------------------------------------- */
+:root,
+:root[data-theme="dark"] {
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #232322;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --border: rgba(255, 255, 255, 0.10);
+  --accent: #3987e5;
+  --accent-ink: #ffffff;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --critical: #d03b3b;
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme="light"] {
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f0efec;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --border: rgba(11, 11, 11, 0.10);
+  --accent: #2a78d6;
+  --accent-ink: #ffffff;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --critical: #d03b3b;
+  --shadow: 0 6px 24px rgba(11, 11, 11, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+/* the hidden attribute must always win, even over display rules below */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--page);
+  overflow: hidden;
+}
+
+/* --------------------------------- top bar ------------------------------ */
+.topbar {
+  position: relative;
+  z-index: 2; /* above the map's oversized canvas bleed */
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 56px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand { display: flex; align-items: center; gap: 10px; min-width: 200px; }
+.brand-name { font-weight: 700; font-size: 15px; letter-spacing: 0.2px; }
+.brand-sub { font-size: 11px; color: var(--muted); }
+
+.kpis { display: flex; gap: 28px; flex: 1; }
+.kpi-value {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-label { font-size: 11px; color: var(--muted); }
+
+.topbar-controls { display: flex; align-items: center; gap: 8px; }
+.control-label { font-size: 12px; color: var(--muted); }
+
+/* status pill: icon + label, never color alone */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--surface-2);
+}
+.pill-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.pill[data-state="live"] .pill-dot { background: var(--good); }
+.pill[data-state="paused"] .pill-dot { background: var(--muted); }
+.pill[data-state="warming"] .pill-dot { background: var(--warning); }
+.pill[data-state="error"] .pill-dot { background: var(--critical); }
+.pill[data-state="connecting"] .pill-dot { background: var(--warning); }
+
+/* -------------------------------- controls ------------------------------ */
+.btn {
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-ghost { background: transparent; }
+.btn-icon { padding: 6px 9px; }
+
+select, input[type="text"], input[type="search"], input[type="datetime-local"] {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+input::placeholder { color: var(--muted); }
+
+/* --------------------------------- layout ------------------------------- */
+.layout {
+  display: flex;
+  height: calc(100% - 56px);
+}
+
+.sidebar {
+  position: relative;
+  z-index: 1; /* above the map's oversized canvas bleed */
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  min-width: 320px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.search-row { padding: 12px; }
+.search-row input { width: 100%; }
+
+.filters {
+  margin: 0 12px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.filters summary {
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+.filters-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 11px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.filters-body { display: grid; gap: 6px; padding: 0 12px 12px; }
+.filters-body label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+.chip-row { display: flex; gap: 4px; }
+.chip-row button {
+  flex: 1;
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.chip-row button:hover { border-color: var(--accent); }
+.chip-row button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+.range-row { display: flex; align-items: center; gap: 6px; }
+.range-row input { flex: 1; min-width: 0; }
+.range-row span { color: var(--muted); }
+
+.filters-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+.list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px 8px;
+}
+.list-count { font-size: 12px; color: var(--muted); }
+.list-head select { font-size: 12px; padding: 4px 6px; }
+
+/* ------------------------------ vessel list ----------------------------- */
+.vessel-list {
+  flex: 1;
+  margin: 0;
+  padding: 0 8px 12px;
+  list-style: none;
+  overflow-y: auto;
+}
+.vessel-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.vessel-row:hover { background: var(--surface-2); }
+.vessel-row.selected { background: var(--surface-2); border-color: var(--accent); }
+.vessel-swatch {
+  width: 10px; height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+.vessel-main { flex: 1; min-width: 0; }
+.vessel-name {
+  display: block;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vessel-mmsi { display: block; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.vessel-side { text-align: right; }
+.vessel-speed { font-size: 12px; font-variant-numeric: tabular-nums; }
+.vessel-age { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.vessel-empty { padding: 24px 12px; color: var(--muted); text-align: center; }
+
+/* ---------------------------------- map --------------------------------- */
+.map-wrap { position: relative; flex: 1; z-index: 0; isolation: isolate; }
+#map { position: absolute; inset: 0; background: var(--page); }
+
+.map-fit {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 800;
+  box-shadow: var(--shadow);
+}
+
+.leaflet-container { font: inherit; }
+.leaflet-tooltip {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+}
+.leaflet-tooltip-top:before { border-top-color: var(--border); }
+
+.ship-marker svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+.ship-marker.selected svg { transform: scale(1.35); }
+
+/* ------------------------------ detail panel ---------------------------- */
+.detail {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 900;
+  width: 300px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+.detail-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.detail-title { flex: 1; min-width: 0; }
+.detail-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.detail-mmsi { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  margin: 0;
+  padding: 12px;
+}
+.detail-grid dt { font-size: 11px; color: var(--muted); }
+.detail-grid dd {
+  margin: 1px 0 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.detail-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+/* ------------------------------ overlay/toast --------------------------- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--page) 65%, transparent);
+}
+.overlay-card {
+  max-width: 380px;
+  padding: 28px 32px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.overlay-card h2 { margin: 10px 0 6px; font-size: 16px; }
+.overlay-card p { margin: 0; color: var(--ink-2); font-size: 13px; }
+.overlay-icon { animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1100;
+  padding: 10px 16px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--critical);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  font-size: 13px;
+}
+.toast.info { border-color: var(--accent); }
+
+/* ------------------------------- responsive ----------------------------- */
+@media (max-width: 900px) {
+  .kpis { display: none; }
+  .sidebar { width: 260px; min-width: 260px; }
+  .brand-sub { display: none; }
+}
